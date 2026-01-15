@@ -1,0 +1,29 @@
+<!-- core/templates/core/add_task.html -->
+{% extends 'base.html' %}
+{% load static %}
+
+{% comment %}
+    Динамический заголовок в <title>
+    'object' - это переменная, которую Django передает при редактировании.
+{% endcomment %}
+{% block title %}{% if object %}Редактировать задание{% else %}Добавить задание{% endif %} - {{ block.super }}{% endblock %}
+
+{% comment %}
+    Динамический заголовок страницы
+{% endcomment %}
+{% block page_title %}{% if object %}Редактировать задание #{{ object.id }}{% else %}Новое задание для биддера{% endif %}{% endblock %}
+
+{% comment %}
+    Основной контент - наша форма
+{% endcomment %}
+{% block content %}
+<form method="post" class="form-styled">
+    {% csrf_token %}
+    {{ form.as_p }}
+    <div class="form-actions">
+        <button type="submit" class="btn btn-primary">
+            {% if object %}Сохранить изменения{% else %}Добавить задание{% endif %}
+        </button>
+    </div>
+</form>
+{% endblock %}

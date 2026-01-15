@@ -1,0 +1,22 @@
+<!-- core/templates/core/task_confirm_delete.html -->
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Подтверждение удаления</title>
+    <style>
+        body { font-family: sans-serif; display: flex; justify-content: center; align-items: center; min-height: 100vh; background-color: #f8f9fa;}
+        form { padding: 2em; border: 1px solid #ccc; border-radius: 5px; background: #fff; text-align: center; }
+        button { padding: 10px 15px; border: none; background-color: #dc3545; color: white; border-radius: 5px; cursor: pointer; }
+        a { text-decoration: none; color: #007bff; margin-left: 1em; }
+    </style>
+</head>
+<body>
+    <form method="post">
+        {% csrf_token %}
+        <h2>Вы уверены, что хотите удалить задание для объявления "{{ object.ad_id }}"?</h2>
+        <p>Это действие необратимо.</p>
+        <button type="submit">Да, удалить</button>
+        <a href="{% url 'task-list' %}">Отмена</a>
+    </form>
+</body>
+</html>
