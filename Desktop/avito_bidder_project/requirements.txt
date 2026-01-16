@@ -20,11 +20,13 @@ django-appconf==1.0.6
 django-celery-beat==2.8.1
 django-cryptography==1.1
 django-encrypted-model-fields==0.6.5
+django-environ==0.11.2
 django-timezone-field==7.2.1
 idna==3.11
 kombu==5.5.4
 packaging==25.0
 prompt_toolkit==3.0.52
+psycopg2-binary @ file:///C:/Users/User/Desktop/avito_bidder_project/psycopg2_binary-2.9.9-cp38-cp38-win_amd64.whl#sha256=a6cdcc3ede532f4a4b96000b6362099591ab4a3e913d70bcbac2b56c872446f7
 pycparser==2.23
 python-crontab==3.3.0
 python-dateutil==2.9.0.post0

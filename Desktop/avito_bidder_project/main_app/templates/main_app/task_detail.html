@@ -1,0 +1,37 @@
+<!-- main_app/templates/main_app/task_detail.html -->
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}Детали задачи #{{ task.id }} - {{ block.super }}{% endblock %}
+
+{% block page_title %}История задачи #{{ task.id }}{% endblock %}
+
+{% block header_actions %}
+    <a href="{% url 'task-list' %}" class="btn btn-secondary">
+        <i class="fas fa-arrow-left"></i> Назад к списку
+    </a>
+{% endblock %}
+
+{% block content %}
+    <div class="task-details">
+        <h4>Объявление: {{ task.ad_id }}</h4>
+        <p>URL для поиска: <a href="{{ task.search_url }}" target="_blank">открыть</a></p>
+        <p>Цель: до {{ task.target_position }} места</p>
+        <p>Ценовой диапазон: от {{ task.min_price }} до {{ task.max_price }} ₽</p>
+    </div>
+
+    <h3 class="logs-header">Журнал событий</h3>
+
+    <div class="logs-container">
+        {% for log in logs %}
+            <div class="log-entry log-{{ log.level|lower }}">
+                <span class="log-timestamp">{{ log.timestamp|date:"d.m.Y H:i:s" }}</span>
+                <span class="log-message">{{ log.message }}</span>
+            </div>
+        {% empty %}
+            <div class="log-entry">
+                <span class="log-message">Для этой задачи еще нет записей в журнале.</span>
+            </div>
+        {% endfor %}
+    </div>
+{% endblock %}

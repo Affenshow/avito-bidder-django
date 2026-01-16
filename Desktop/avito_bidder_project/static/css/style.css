@@ -393,3 +393,91 @@ a {
         padding: 1.5rem;
     }
 }
+
+/* --- Стили для страницы деталей и логов --- */
+
+.btn-secondary {
+    background-color: #6C757D;
+    color: #FFFFFF;
+}
+.btn-secondary:hover {
+    background-color: #5A6268;
+}
+
+.task-details {
+    margin-bottom: 2rem;
+    padding-bottom: 1.5rem;
+    border-bottom: 1px solid var(--border-color);
+}
+.task-details h4 {
+    margin-bottom: 1rem;
+}
+.task-details p {
+    margin-bottom: 0.5rem;
+    color: #475569;
+}
+
+.logs-header {
+    margin-bottom: 1.5rem;
+}
+
+.logs-container {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+}
+
+.log-entry {
+    display: flex;
+    padding: 0.75rem 1rem;
+    background-color: #F8F9FA;
+    border-radius: 8px;
+    font-size: 0.9rem;
+    border-left: 4px solid #6C757D; /* INFO по умолчанию */
+}
+.log-entry.log-warning {
+    border-left-color: #FFC107; /* Желтый для WARNING */
+}
+.log-entry.log-error {
+    border-left-color: #DC3545; /* Красный для ERROR */
+}
+
+
+.log-timestamp {
+    color: #6C757D;
+    margin-right: 1.5rem;
+    flex-shrink: 0; /* Не сжиматься */
+}
+
+.log-message {
+    color: #343A40;
+}
+
+.balance-display {
+    background-color: #F8F9FA;
+    padding: 1.5rem;
+    border-radius: 8px;
+    margin-bottom: 2rem;
+}
+.balance-value {
+    font-size: 2rem;
+    font-weight: 700;
+    color: var(--text-dark);
+}
+.balance-error {
+    color: #DC3545;
+    font-weight: 500;
+}
+
+.balance-container {
+    display: flex;
+    gap: 2rem; /* Пространство между блоками */
+    margin-bottom: 2rem;
+}
+
+.balance-display {
+    flex: 1; /* Каждый блок занимает равное пространство */
+    background-color: #F8F9FA;
+    padding: 1.5rem;
+    border-radius: 8px;
+}

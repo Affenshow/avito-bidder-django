@@ -1,0 +1,59 @@
+<!-- core/templates/core/task_list.html -->
+{% extends 'base.html' %}
+{% load static %}
+
+{% comment %}
+    Этот блок вставляет "Обзор" в <title> страницы
+{% endcomment %}
+{% block title %}Обзор - {{ block.super }}{% endblock %}
+
+{% comment %}
+    Этот блок вставляет заголовок "Обзор" в шапку контента
+{% endcomment %}
+{% block page_title %}Обзор{% endblock %}
+
+{% comment %}
+    Этот блок вставляет кнопку "Добавить" в шапку контента
+{% endcomment %}
+{% block header_actions %}
+    <a href="{% url 'add-task' %}" class="btn btn-primary">
+        <i class="fas fa-plus"></i> Добавить объявление
+    </a>
+{% endblock %}
+
+
+{% comment %}
+    Основной контент страницы - наша таблица
+{% endcomment %}
+{% block content %}
+    {% if tasks %}
+        <table class="data-table">
+            <thead>
+                <tr>
+                    <th>ID Объявления</th>
+                    <th>Макс. цена</th>
+                    <th>Целевая позиция</th>
+                    <th>Создано</th>
+                    <th>Действия</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for task in tasks %}
+                    <tr>
+                        <td>{{ task.ad_id }}</td>
+                        <td>{{ task.max_price }} ₽</td>
+                        <td>до {{ task.target_position }}</td>
+                        <td>{{ task.created_at|date:"d.m.Y H:i" }}</td>
+                        <td class="action-links">
+                            <a href="{% url 'task-detail' pk=task.pk %}">{{ task.ad_id }}</a>
+                            <a href="{% url 'task-edit' pk=task.pk %}" title="Редактировать"><i class="fas fa-pencil-alt"></i></a>
+                            <a href="{% url 'task-delete' pk=task.pk %}" title="Удалить"><i class="fas fa-trash-alt"></i></a>
+                        </td>
+                    </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    {% else %}
+        <p>Активных заданий пока нет. Нажмите кнопку "Добавить объявление", чтобы создать первое.</p>
+    {% endif %}
+{% endblock %}
