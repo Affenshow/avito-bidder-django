@@ -1,34 +1,17 @@
+# avito_bidder/settings/base.py
 """
-Django settings for avito_bidder project.
+Общие настройки для проекта avito_bidder.
 """
 
 import os
 from pathlib import Path
-import environ
+from celery.schedules import crontab
 
-# --- НАСТРОЙКА DJANGO-ENVIRON (ИСПРАВЛЕННАЯ) ---
-BASE_DIR = Path(__file__).resolve().parent.parent
-env = environ.Env()
-# Явно указываем Django, где находится наш .env файл.
-# Это решает проблемы с поиском файла на Windows.
-environ.Env.read_env(os.path.join(BASE_DIR, '.env'))
-# --- КОНЕЦ НАСТРОЙКИ ---
-
-
-# Quick-start development settings - unsuitable for production
-# See https://docs.djangoproject.com/en/4.2/howto/deployment/checklist/
-
-# SECURITY WARNING: keep the secret key used in production secret!
-SECRET_KEY = env('SECRET_KEY')
-
-# SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = True
-
-ALLOWED_HOSTS = []
-
+# Build paths inside the project like this: BASE_DIR / 'subdir'.
+# Обратите внимание, что мы "поднимаемся" на три уровня, так как base.py лежит в settings/
+BASE_DIR = Path(__file__).resolve().parent.parent.parent
 
 # Application definition
-
 INSTALLED_APPS = [
     'django.contrib.admin',
     'django.contrib.auth',
@@ -71,22 +54,7 @@ TEMPLATES = [
 
 WSGI_APPLICATION = 'avito_bidder.wsgi.application'
 
-
-# Database
-# https://docs.djangoproject.com/en/4.2/ref/settings/#databases
-DATABASES = {
-    'default': {
-        'ENGINE': 'django.db.backends.postgresql',
-        'NAME': env('DB_NAME'),
-        'USER': env('DB_USER'),
-        'PASSWORD': env('DB_PASSWORD'),
-        'HOST': env('DB_HOST'),
-        'PORT': env('DB_PORT'),
-    }
-}
-
 # Password validation
-# https://docs.djangoproject.com/en/4.2/ref/settings/#auth-password-validators
 AUTH_PASSWORD_VALIDATORS = [
     {'NAME': 'django.contrib.auth.password_validation.UserAttributeSimilarityValidator'},
     {'NAME': 'django.contrib.auth.password_validation.MinimumLengthValidator'},
@@ -94,39 +62,25 @@ AUTH_PASSWORD_VALIDATORS = [
     {'NAME': 'django.contrib.auth.password_validation.NumericPasswordValidator'},
 ]
 
-
 # Internationalization
-# https://docs.djangoproject.com/en/4.2/topics/i18n/
 LANGUAGE_CODE = 'ru-RU'
 TIME_ZONE = 'UTC'
 USE_I18N = True
 USE_TZ = True
 
-
 # Static files (CSS, JavaScript, Images)
-# https://docs.djangoproject.com/en/4.2/howto/static-files/
 STATIC_URL = '/static/'
-STATICFILES_DIRS = [
-    BASE_DIR / 'static',
-]
-# Папка, куда Django будет собирать ВСЕ статические файлы для Production
+STATICFILES_DIRS = [BASE_DIR / 'static']
 STATIC_ROOT = BASE_DIR / 'staticfiles'
 
-
-
 # Default primary key field type
-# https://docs.djangoproject.com/en/4.2/ref/settings/#default-auto-field
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
-
 
 # --- Настройки редиректов ---
 LOGIN_REDIRECT_URL = '/'
 LOGOUT_REDIRECT_URL = '/'
 
-
 # --- Настройки Celery ---
-from celery.schedules import crontab
-
 CELERY_BROKER_URL = 'redis://localhost:6379/0'
 CELERY_RESULT_BACKEND = 'redis://localhost:6379/0'
 CELERY_ACCEPT_CONTENT = ['json']
@@ -140,10 +94,3 @@ CELERY_BEAT_SCHEDULE = {
         'schedule': crontab(minute='*/10'),
     },
 }
-
-
-# --- Настройки шифрования полей ---
-# В реальном проекте этот ключ тоже нужно выносить в .env файл!
-FIELD_ENCRYPTION_KEY=b'GdN3jWtt8QDXMRUGxnQ6VU2kp2dhYBkahIdSY1-mCOc='
-# Я добавил default, чтобы проект запускался, даже если вы забудете добавить ключ в .env
-# Но вам нужно будет создать эту переменную в .env для реального проекта

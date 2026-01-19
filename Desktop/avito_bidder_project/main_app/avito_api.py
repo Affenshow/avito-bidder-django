@@ -1,4 +1,3 @@
-# main_app/avito_api.py
 import requests
 import logging
 from typing import Union, Dict
@@ -13,7 +12,6 @@ def get_avito_access_token(client_id: str, client_secret: str) -> Union[str, Non
     """Обменивает client_id и client_secret на временный access_token."""
     headers = {
         'Content-Type': 'application/x-www-form-urlencoded',
-        # --- ИМИТИРУЕМ ЗАПРОС С "ДОВЕРЕННОГО" ИСТОЧНИКА ---
         'Referer': 'https://b2b.avito.ru/'
     }
     data = {
@@ -22,44 +20,46 @@ def get_avito_access_token(client_id: str, client_secret: str) -> Union[str, Non
         'grant_type': 'client_credentials'
     }
     try:
-        logger.info(f"--- [API-HACK] Запрос токена с Referer: {headers['Referer']} ---")
+        logger.info(f"--- Запрос токена с Referer: {headers['Referer']} ---")
         response = requests.post(TOKEN_URL, headers=headers, data=data)
         response.raise_for_status()
         token_data = response.json()
         access_token = token_data.get('access_token')
-        if access_token: return access_token
+        if access_token:
+            return access_token
         return None
     except Exception as e:
-        logger.error(f"--- [API-HACK] Ошибка при получении токена: {e}")
-        if hasattr(e, 'response') and e.response: logger.error(f"--- [API-HACK] Ответ сервера: {e.response.text}")
+        logger.error(f"Ошибка при получении токена: {e}")
+        if hasattr(e, 'response') and e.response:
+            logger.error(f"Ответ сервера: {e.response.text}")
         return None
 
-def get_avito_balance(access_token: str, profile_id: int) -> Union[Dict, None]: # <-- Принимаем profile_id
-    """
-    ГИПОТЕЗА: Используем profile_id вместо user_id для запроса баланса.
-    """
-    if not access_token or not profile_id:
-        return None
-
+def get_avito_account_id(access_token: str) -> Union[int, None]:
+    """Получает account_id текущего аккаунта через API."""
     headers = {'Authorization': f'Bearer {access_token}'}
-
     try:
-        # --- ГЛАВНЫЙ ЭКСПЕРИМЕНТ ---
-        # Формируем URL, подставляя ID ПРОФИЛЯ вместо ID пользователя
-        balance_url = BALANCE_URL_TPL.format(user_id=profile_id)
-        
-        logger.info(f"--- [ЭКСПЕРИМЕНТ] Запрос баланса по URL: {balance_url} ---")
-        balance_response = requests.get(balance_url, headers=headers)
-        balance_response.raise_for_status()
-        balance_data = balance_response.json()
-        
-        print(f"--- [ЭКСПЕРИМЕНТ] ПОЛНЫЙ ОТВЕТ API БАЛАНСА: {balance_data} ---")
-
-        return {
-            'real': balance_data.get('real', 0.0),
-            'bonus': balance_data.get('bonus', 0.0)
-        }
+        response = requests.get(USER_INFO_URL, headers=headers)
+        response.raise_for_status()
+        data = response.json()
+        return data.get('id')  # Обычно это account_id
     except Exception as e:
-        logger.error(f"--- [ЭКСПЕРИМЕНТ] Ошибка при получении баланса: {e}")
-        if hasattr(e, 'response') and e.response: logger.error(f"--- [ЭКСПЕРИМЕНТ] Ответ сервера: {e.response.text}")
+        logger.error(f"Ошибка при получении account_id: {e}")
+        return None
+
+def get_avito_balance(access_token: str, account_id: int) -> Union[Dict, None]:
+    """Получает баланс аккаунта по account_id через API."""
+    if not access_token or not account_id:
+        return None
+    headers = {'Authorization': f'Bearer {access_token}'}
+    balance_url = BALANCE_URL_TPL.format(user_id=account_id)
+    try:
+        response = requests.get(balance_url, headers=headers)
+        response.raise_for_status()
+        balance_data = response.json()
+
+        print(f"Полный ответ API баланса: {balance_data}")
+
+        return balance_data  # Возвращаем полный словарь с балансом для анализа
+    except Exception as e:
+        logger.error(f"Ошибка при получении баланса: {e}")
         return None
