@@ -1,5 +1,8 @@
-.env 
-
-# Исключаем файлы настроек для конкретных сред
+/venv/
+/staticfiles/
+db.sqlite3
+__pycache__/
+*.pyc
+.env
 avito_bidder/settings/local.py
 avito_bidder/settings/production.py
