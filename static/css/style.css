@@ -1,0 +1,527 @@
+/* static/css/style.css */
+
+/* Основные переменные и сброс стилей */
+:root {
+    --sidebar-bg: #1E293B;
+    --page-bg: #F1F5F9;
+    --content-bg: #FFFFFF;
+    --primary-blue: #3B82F6;
+    --text-dark: #334155;
+    --text-light: #CBD5E1;
+    --border-color: #E2E8F0;
+}
+
+* {
+    box-sizing: border-box;
+    margin: 0;
+    padding: 0;
+}
+
+body {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+    background-color: var(--page-bg);
+    color: var(--text-dark);
+}
+
+a {
+    text-decoration: none;
+    color: inherit;
+}
+
+/* Структура страницы */
+.page-wrapper {
+    display: flex;
+}
+
+/* Сайдбар */
+.sidebar {
+    width: 250px;
+    background-color: var(--sidebar-bg);
+    color: var(--text-light);
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+}
+
+.sidebar-header {
+    padding: 1.5rem;
+    text-align: center;
+    font-size: 1.2rem;
+    border-bottom: 1px solid #334155;
+}
+
+.sidebar-nav {
+    flex-grow: 1; /* Занимает все доступное пространство */
+}
+
+.sidebar-nav ul {
+    list-style-type: none;
+    padding-top: 1rem;
+}
+
+.sidebar-nav li a {
+    display: block;
+    padding: 1rem 1.5rem;
+    margin: 0.5rem 1rem;
+    border-radius: 8px;
+    transition: background-color 0.2s;
+}
+
+.sidebar-nav li a:hover, .sidebar-nav li.active a {
+    background-color: #334155;
+    color: #FFFFFF;
+}
+
+.sidebar-nav i {
+    margin-right: 10px;
+    width: 20px; /* Фиксированная ширина для иконок */
+}
+
+.sidebar-footer {
+    padding: 1.5rem;
+    border-top: 1px solid #334155;
+}
+ .sidebar-footer a {
+    display: block;
+    text-align: center;
+}
+
+
+/* Основной контент */
+.main-content {
+    flex-grow: 1;
+    padding: 2rem;
+}
+
+.content-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 2rem;
+}
+
+.content-body {
+    background-color: var(--content-bg);
+    padding: 2rem;
+    border-radius: 8px;
+    box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1);
+}
+
+/* Кнопки */
+.btn {
+    display: inline-block;
+    padding: 0.75rem 1.25rem;
+    border-radius: 8px;
+    font-weight: 500;
+    text-align: center;
+    transition: background-color 0.2s;
+}
+
+.btn-primary {
+    background-color: var(--primary-blue);
+    color: #FFFFFF;
+}
+
+.btn-primary:hover {
+    background-color: #2563EB; /* Чуть темнее при наведении */
+}
+
+.btn i {
+    margin-right: 8px;
+}
+
+/* Таблицы */
+.data-table {
+    width: 100%;
+    border-collapse: collapse;
+}
+
+.data-table th, .data-table td {
+    padding: 1rem;
+    text-align: left;
+    border-bottom: 1px solid var(--border-color);
+}
+
+.data-table thead th {
+    color: #64748B;
+    font-weight: 500;
+    text-transform: uppercase;
+    font-size: 0.8rem;
+}
+
+.data-table tbody tr:hover {
+    background-color: #F8F9FA;
+}
+
+.action-links a {
+    color: #64748B;
+    margin-right: 1rem;
+    font-size: 1rem;
+}
+.action-links a:hover {
+    color: var(--primary-blue);
+}
+.action-links a:last-child {
+    margin-right: 0;
+}
+.action-links a[title="Удалить"]:hover {
+    color: #EF4444; /* Красный для удаления */
+}
+
+/* --- Стили для форм --- */
+
+.form-styled {
+    max-width: 600px; /* Ограничиваем ширину формы */
+}
+
+/* Django оборачивает поля в теги <p>, стилизуем их */
+.form-styled p {
+    margin-bottom: 1.5rem;
+}
+
+.form-styled label {
+    display: block;
+    margin-bottom: 0.5rem;
+    font-weight: 500;
+    color: #475569;
+}
+
+.form-styled input[type="text"],
+.form-styled input[type="url"],
+.form-styled input[type="number"] {
+    width: 100%;
+    padding: 0.75rem;
+    border: 1px solid var(--border-color);
+    border-radius: 8px;
+    font-size: 1rem;
+}
+
+.form-styled input:focus {
+    outline: none;
+    border-color: var(--primary-blue);
+    box-shadow: 0 0 0 2px #BFDBFE; /* Голубая рамка при фокусе */
+}
+
+.form-actions {
+    margin-top: 2rem;
+}
+
+/* --- Стили для страниц входа/регистрации --- */
+.auth-page {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    min-height: 100vh;
+}
+
+.auth-container {
+    width: 400px;
+    padding: 2.5rem;
+}
+
+.auth-title {
+    text-align: center;
+    font-size: 1.8rem;
+    margin-bottom: 0.5rem;
+}
+
+.auth-subtitle {
+    text-align: center;
+    color: #64748B;
+    margin-bottom: 2rem;
+}
+
+.auth-footer-link {
+    text-align: center;
+    margin-top: 1.5rem;
+    font-size: 0.9rem;
+}
+.auth-footer-link a {
+    color: var(--primary-blue);
+    font-weight: 500;
+}
+
+.form-group {
+    margin-bottom: 1.5rem;
+}
+
+.form-styled label {
+    display: block;
+    margin-bottom: 0.5rem;
+    font-weight: 500;
+    color: #475569;
+}
+
+/* Стили для полей ввода (уже должны быть, но убедимся) */
+.form-styled input[type="text"],
+.form-styled input[type="password"],
+.form-styled input[type="url"],
+.form-styled input[type="number"] {
+    width: 100%;
+    padding: 0.75rem;
+    border: 1px solid var(--border-color);
+    border-radius: 8px;
+    font-size: 1rem;
+}
+
+/* Стили для подсказок (требования к паролю) */
+.help-text {
+    font-size: 0.8rem;
+    color: #64748B;
+    margin-top: 0.5rem;
+    display: block;
+}
+.help-text ul {
+    list-style-position: inside;
+    padding-left: 0;
+}
+
+
+/* Стили для ошибок ("красивые" сообщения) */
+.error-list {
+    color: #EF4444; /* Красный цвет */
+    font-size: 0.9rem;
+    margin-top: 0.5rem;
+}
+
+/* --- Стили для футера сайдбара --- */
+.sidebar-footer {
+    padding: 1rem 1.5rem;
+    border-top: 1px solid #334155;
+}
+
+.user-profile {
+    display: flex;
+    align-items: center;
+    margin-bottom: 1rem;
+    font-weight: 500;
+}
+
+.user-profile i {
+    font-size: 1.5rem;
+    margin-right: 10px;
+}
+
+.logout-link {
+    display: block;
+    text-align: center;
+    padding: 0.5rem;
+    border-radius: 8px;
+    transition: background-color 0.2s;
+}
+
+.logout-link:hover {
+    background-color: #334155;
+}
+
+/* --- Стили для адаптивности (Mobile-First подход) --- */
+
+.mobile-nav-toggle {
+    display: none; /* Скрыто на десктопах */
+    position: fixed;
+    top: 1rem;
+    left: 1rem;
+    z-index: 1000;
+    background: var(--sidebar-bg);
+    color: var(--text-light);
+    border: none;
+    padding: 0.5rem 0.75rem;
+    border-radius: 8px;
+    cursor: pointer;
+}
+.sr-only { /* Скрываем текст, оставляем иконку */
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    padding: 0;
+    margin: -1px;
+    overflow: hidden;
+    clip: rect(0,0,0,0);
+    white-space: nowrap;
+    border-width: 0;
+}
+
+.sidebar-overlay {
+    display: none;
+    position: fixed;
+    inset: 0;
+    background-color: rgba(0,0,0,0.5);
+    z-index: 900;
+}
+.sidebar-overlay[data-visible="true"] {
+    display: block;
+}
+
+
+/* Медиа-запрос: стили для экранов шириной 768px и меньше */
+@media (max-width: 768px) {
+    .sidebar {
+        position: fixed;
+        top: 0;
+        left: 0;
+        height: 100%;
+        z-index: 950;
+        transform: translateX(-100%); /* Скрываем меню за левым краем */
+        transition: transform 0.3s ease-out;
+    }
+
+    .sidebar[data-visible="true"] {
+        transform: translateX(0); /* Показываем меню */
+    }
+
+    .main-content {
+        padding: 1rem;
+        padding-top: 5rem; /* Добавляем отступ сверху, чтобы контент не залезал под бургер-кнопку */
+    }
+
+    .mobile-nav-toggle {
+        display: block; /* Показываем бургер-кнопку */
+    }
+
+    /* Уменьшаем заголовки и отступы на мобильных */
+    .content-header {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 1rem;
+    }
+     h1, .auth-title {
+        font-size: 1.5rem;
+    }
+
+    .auth-container {
+        width: 100%;
+        padding: 1.5rem;
+    }
+}
+
+/* --- Стили для страницы деталей и логов --- */
+
+.btn-secondary {
+    background-color: #6C757D;
+    color: #FFFFFF;
+}
+.btn-secondary:hover {
+    background-color: #5A6268;
+}
+
+.task-details {
+    margin-bottom: 2rem;
+    padding-bottom: 1.5rem;
+    border-bottom: 1px solid var(--border-color);
+}
+.task-details h4 {
+    margin-bottom: 1rem;
+}
+.task-details p {
+    margin-bottom: 0.5rem;
+    color: #475569;
+}
+
+.logs-header {
+    margin-bottom: 1.5rem;
+}
+
+.logs-container {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+}
+
+.log-entry {
+    display: flex;
+    padding: 0.75rem 1rem;
+    background-color: #F8F9FA;
+    border-radius: 8px;
+    font-size: 0.9rem;
+    border-left: 4px solid #6C757D; /* INFO по умолчанию */
+}
+.log-entry.log-warning {
+    border-left-color: #FFC107; /* Желтый для WARNING */
+}
+.log-entry.log-error {
+    border-left-color: #DC3545; /* Красный для ERROR */
+}
+
+
+.log-timestamp {
+    color: #6C757D;
+    margin-right: 1.5rem;
+    flex-shrink: 0; /* Не сжиматься */
+}
+
+.log-message {
+    color: #343A40;
+}
+
+.balance-display {
+    background-color: #F8F9FA;
+    padding: 1.5rem;
+    border-radius: 8px;
+    margin-bottom: 2rem;
+}
+.balance-value {
+    font-size: 2rem;
+    font-weight: 700;
+    color: var(--text-dark);
+}
+.balance-error {
+    color: #DC3545;
+    font-weight: 500;
+}
+
+.balance-container {
+    display: flex;
+    gap: 2rem; /* Пространство между блоками */
+    margin-bottom: 2rem;
+}
+
+.balance-display {
+    flex: 1; /* Каждый блок занимает равное пространство */
+    background-color: #F8F9FA;
+    padding: 1.5rem;
+    border-radius: 8px;
+}
+
+
+
+/* --- Стили для интерактивных подсказок --- */
+.field-help-text {
+    overflow: hidden;
+    max-height: 500px; /* Для анимации */
+    transition: max-height 0.5s ease-in-out, margin-top 0.5s ease-in-out;
+    margin-top: 0.75rem;
+}
+
+/* Состояние по умолчанию */
+.field-help-text li {
+    transition: color 0.3s;
+    color: #64748B; /* Серый */
+}
+
+/* Выполненный пункт */
+.field-help-text li.valid {
+    color: #10B981; /* Зеленый */
+    text-decoration: line-through;
+}
+.field-help-text li.valid::before {
+    content: '✓ ';
+    color: #10B981;
+}
+
+/* Невыполненный пункт (опционально, если хотите подсвечивать) */
+.field-help-text li.invalid {
+    color: #EF4444; /* Красный */
+}
+.field-help-text li.invalid::before {
+    content: '✗ ';
+    color: #EF4444;
+}
+
+.form-row {
+    display: flex;
+    gap: 1.5rem; /* Пространство между полями */
+}
+
+.form-row .form-group {
+    flex: 1; /* Каждое поле занимает равное пространство */
+}

@@ -1,0 +1,52 @@
+<!-- templates/registration/signup.html -->
+{% load static %}
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <title>Регистрация</title>
+    <link rel="stylesheet" href="{% static 'css/style.css' %}">
+</head>
+<body class="auth-page">
+    <div class="auth-container">
+        <h2 class="auth-title">Создание аккаунта</h2>
+        <form method="post" class="form-styled" novalidate>
+    {% csrf_token %}
+    {{ form.non_field_errors }}
+
+    <!-- Поле "Имя пользователя" -->
+    <div class="form-group">
+        <label for="{{ form.username.id_for_label }}">{{ form.username.label }}</label>
+        {{ form.username }}
+        {{ form.username.errors }}
+    </div>
+
+    <!-- Поле "Пароль" -->
+    <div class="form-group">
+        <label for="{{ form.password1.id_for_label }}">{{ form.password1.label }}</label>
+        {{ form.password1 }}
+        <!-- Блок с подсказками, изначально скрыт -->
+        <div id="password-help-block" class="field-help-text" style="display: none;">
+            {{ form.password1.help_text|safe }}
+        </div>
+        {{ form.password1.errors }}
+    </div>
+
+    <!-- Поле "Подтверждение пароля" -->
+    <div class="form-group">
+        <label for="{{ form.password2.id_for_label }}">{{ form.password2.label }}</label>
+        {{ form.password2 }}
+        {{ form.password2.errors }}
+    </div>
+
+    <div class="form-actions">
+        <button type="submit" class="btn btn-primary" style="width: 100%;">Зарегистрироваться</button>
+    </div>
+</form>
+        <p class="auth-footer-link">
+            Уже есть аккаунт? <a href="{% url 'login' %}">Войти</a>
+        </p>
+    </div>
+     <script src="{% static 'js/auth.js' %}"></script>
+</body>
+</html>

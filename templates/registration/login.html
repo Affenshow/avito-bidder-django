@@ -1,0 +1,40 @@
+<!-- templates/registration/login.html -->
+{% load static %}
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <title>Вход</title>
+    <link rel="stylesheet" href="{% static 'css/style.css' %}">
+</head>
+<body class="auth-page">
+    <div class="auth-container">
+        <h2 class="auth-title">Bidder</h2>
+        <p class="auth-subtitle">Войдите в свой аккаунт</p>
+        <form method="post" class="form-styled">
+            {% csrf_token %}
+
+    {% for field in form %}
+        <div class="form-group">
+            {{ field.label_tag }}
+            {{ field }}
+            {% if field.errors %}
+                <div class="error-list">
+                    {% for error in field.errors %}
+                        <span>{{ error }}</span>
+                    {% endfor %}
+                </div>
+            {% endif %}
+        </div>
+    {% endfor %}
+
+            <div class="form-actions">
+                <button type="submit" class="btn btn-primary" style="width: 100%;">Войти</button>
+            </div>
+        </form>
+        <p class="auth-footer-link">
+            Нет аккаунта? <a href="{% url 'signup' %}">Зарегистрируйтесь</a>
+        </p>
+    </div>
+</body>
+</html>

@@ -1,0 +1,5 @@
+.env 
+
+# Исключаем файлы настроек для конкретных сред
+avito_bidder/settings/local.py
+avito_bidder/settings/production.py

@@ -1,0 +1,89 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% comment %}
+    Динамический заголовок в <title>
+    'object' - это переменная, которую Django передает при редактировании.
+{% endcomment %}
+{% block title %}{% if object %}Редактировать задание{% else %}Добавить задание{% endif %} - {{ block.super }}{% endblock %}
+
+
+{% comment %}
+    Динамический заголовок страницы
+{% endcomment %}
+{% block page_title %}{% if object %}Редактировать задание #{{ object.id }}{% else %}Новое задание для биддера{% endif %}{% endblock %}
+
+
+{% comment %}
+    Основной контент - наша форма
+{% endcomment %}
+{% block content %}
+<form method="post" class="form-styled">
+    {% csrf_token %}
+
+    <!-- Отображаем общие ошибки формы, если они есть -->
+    {% if form.non_field_errors %}
+        <div class="form-errors">
+            {{ form.non_field_errors }}
+        </div>
+    {% endif %}
+
+    <!-- ID Объявления -->
+    <div class="form-group">
+        <label for="{{ form.ad_id.id_for_label }}">{{ form.ad_id.label }}</label>
+        {{ form.ad_id }}
+        {% if form.ad_id.errors %}<div class="field-errors">{{ form.ad_id.errors }}</div>{% endif %}
+    </div>
+
+    <!-- URL для поиска -->
+    <div class="form-group">
+        <label for="{{ form.search_url.id_for_label }}">{{ form.search_url.label }}</label>
+        {{ form.search_url }}
+        {% if form.search_url.errors %}<div class="field-errors">{{ form.search_url.errors }}</div>{% endif %}
+    </div>
+
+    <!-- Ценовой диапазон в одной строке -->
+    <div class="form-row">
+        <div class="form-group">
+            <label for="{{ form.min_price.id_for_label }}">{{ form.min_price.label }}</label>
+            {{ form.min_price }}
+            {% if form.min_price.errors %}<div class="field-errors">{{ form.min_price.errors }}</div>{% endif %}
+        </div>
+        <div class="form-group">
+            <label for="{{ form.max_price.id_for_label }}">{{ form.max_price.label }}</label>
+            {{ form.max_price }}
+            {% if form.max_price.errors %}<div class="field-errors">{{ form.max_price.errors }}</div>{% endif %}
+        </div>
+    </div>
+
+    <!-- Настройки биддера в одной строке -->
+    <div class="form-row">
+        <div class="form-group">
+            <label for="{{ form.target_position.id_for_label }}">{{ form.target_position.label }}</label>
+            {{ form.target_position }}
+            {% if form.target_position.errors %}<div class="field-errors">{{ form.target_position.errors }}</div>{% endif %}
+        </div>
+        <!-- НОВОЕ ПОЛЕ "Шаг ставки" -->
+        <div class="form-group">
+            <label for="{{ form.bid_step.id_for_label }}">{{ form.bid_step.label }}</label>
+            {{ form.bid_step }}
+            {% if form.bid_step.errors %}<div class="field-errors">{{ form.bid_step.errors }}</div>{% endif %}
+        </div>
+    </div>
+
+    <!-- Переключатель "Активен" -->
+    <div class="form-group form-group-toggle">
+        {{ form.is_active }}
+        <label for="{{ form.is_active.id_for_label }}">{{ form.is_active.label }}</label>
+        {% if form.is_active.errors %}<div class="field-errors">{{ form.is_active.errors }}</div>{% endif %}
+    </div>
+
+    <!-- Кнопка сохранения -->
+    <div class="form-actions">
+        <button type="submit" class="btn btn-primary">
+            {% if object %}Сохранить изменения{% else %}Добавить задание{% endif %}
+        </button>
+    </div>
+</form>
+
+{% endblock %}

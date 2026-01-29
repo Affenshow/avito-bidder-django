@@ -1,0 +1,72 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}Настройки - {{ block.super }}{% endblock %}
+
+{% block page_title %}Настройки API{% endblock %}
+
+{% block content %}
+    <!-- Блок для отображения балансов -->
+    <div class="balance-container">
+        <div class="balance-display">
+            <h4>Кошелек</h4>
+            {% if real_balance is not None %}
+                <p class="balance-value">{{ real_balance }} ₽</p>
+            {% else %}
+                <p class="balance-error">Не удалось получить баланс.</p>
+            {% endif %}
+        </div>
+        <div class="balance-display">
+            <h4>Аванс для продвижения</h4>
+            {% if bonus_balance is not None %}
+                <p class="balance-value">{{ bonus_balance }} ₽</p>
+            {% else %}
+                <p class="balance-error">Проверьте API-ключи.</p>
+            {% endif %}
+        </div>
+    </div>
+
+    <!-- Пояснительный текст -->
+    <p style="margin: 2rem 0; max-width: 700px; color: #64748B;">
+        Здесь вы можете указать ваши ключи API от Avito. Эти данные хранятся в зашифрованном виде и необходимы для работы биддера.
+    </p>
+
+    <!-- Форма для ввода ключей -->
+    <form method="post" class="form-styled">
+        {% csrf_token %}
+        
+        <!-- Показываем общие (не относящиеся к полям) ошибки формы -->
+        {% if form.non_field_errors %}
+            <div class="error-list">
+                {{ form.non_field_errors }}
+            </div>
+        {% endif %}
+
+        <!-- Поле для Client ID -->
+        <div class="form-group">
+            <label for="{{ form.avito_client_id.id_for_label }}">Avito Client ID</label>
+            {{ form.avito_client_id }}
+            {% if form.avito_client_id.errors %}
+                <div class="error-list">
+                    {{ form.avito_client_id.errors }}
+                </div>
+            {% endif %}
+        </div>
+        
+        <!-- Поле для Client Secret -->
+        <div class.form-group">
+            <label for="{{ form.avito_client_secret.id_for_label }}">Avito Client Secret</label>
+            {{ form.avito_client_secret }}
+            {% if form.avito_client_secret.errors %}
+                <div class="error-list">
+                    {{ form.avito_client_secret.errors }}
+                </div>
+            {% endif %}
+        </div>
+        
+        <!-- Кнопка сохранения -->
+        <div class="form-actions">
+            <button type="submit" class="btn btn-primary">Сохранить ключи</button>
+        </div>
+    </form>
+{% endblock %}
