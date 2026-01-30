@@ -6,7 +6,7 @@ from django.views.generic.edit import CreateView, UpdateView, DeleteView
 from django.contrib.auth.forms import UserCreationForm
 from django.contrib.auth.decorators import login_required
 from django.contrib.auth.mixins import LoginRequiredMixin, UserPassesTestMixin
-
+import json
 # Импорты из нашего приложения
 from .models import BiddingTask, UserProfile, TaskLog
 from .forms import BiddingTaskForm, UserProfileForm
@@ -20,13 +20,19 @@ from .tasks import get_ad_position
 
 @login_required
 def task_list_view(request):
-    """
-    Отображает список СВОИХ заданий.
-    """
     tasks = BiddingTask.objects.filter(user=request.user)
-    context = {
-        'tasks': tasks
-    }
+    
+    # --- "Подготавливаем" расписание для шаблона ---
+    for task in tasks:
+        if isinstance(task.schedule, str):
+            try:
+                task.schedule_list = json.loads(task.schedule)
+            except json.JSONDecodeError:
+                task.schedule_list = []
+        else:
+             task.schedule_list = task.schedule
+    
+    context = {'tasks': tasks}
     return render(request, 'main_app/task_list.html', context)
 
 

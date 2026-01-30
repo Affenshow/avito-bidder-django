@@ -94,3 +94,74 @@ document.addEventListener('DOMContentLoaded', function() {
     }
 
 });
+
+// static/js/main.js
+document.addEventListener('DOMContentLoaded', function() {
+    
+    // ... (код для мобильного меню, расписания, ползунка) ...
+
+    // --- НОВЫЙ КОД ДЛЯ ИНДИКАТОРА СТАТУСА ---
+    const statusWidgets = document.querySelectorAll('.status-widget-new');
+
+    statusWidgets.forEach(widget => {
+        // Начальная установка класса в зависимости от статуса
+        const isActive = widget.dataset.isActive === 'true';
+        if (isActive) {
+            widget.classList.add('is-active');
+        } else {
+            widget.classList.add('is-inactive');
+        }
+
+        // Обработчик клика на виджет
+        widget.addEventListener('click', function() {
+            const taskId = this.dataset.taskId;
+            const url = `/task/${taskId}/toggle/`;
+            const csrftoken = getCookie('csrftoken'); // Используем ту же функцию getCookie
+
+            // Оптимистичное обновление: сначала меняем вид, потом отправляем запрос
+            let currentIsActive = this.classList.contains('is-active');
+            updateWidgetView(!currentIsActive);
+
+            fetch(url, {
+                method: 'POST',
+                headers: { 'X-CSRFToken': csrftoken }
+            })
+            .then(response => {
+                if (!response.ok) throw new Error('Network response was not ok');
+                return response.json();
+            })
+            .then(data => {
+                // Финальное обновление на основе ответа сервера
+                console.log(`Статус задачи ${taskId} изменен на ${data.is_active}`);
+                updateWidgetView(data.is_active);
+            })
+            .catch(error => {
+                // Если ошибка - откатываем изменение
+                console.error('Ошибка при изменении статуса:', error);
+                updateWidgetView(currentIsActive); // Возвращаем как было
+            });
+        });
+
+        // Функция для обновления внешнего вида виджета
+        function updateWidgetView(isActive) {
+            const statusText = widget.querySelector('.status-text');
+            if (isActive) {
+                widget.classList.add('is-active');
+                widget.classList.remove('is-inactive');
+                statusText.textContent = 'Активен';
+            } else {
+                widget.classList.add('is-inactive');
+                widget.classList.remove('is-active');
+                statusText.textContent = 'На паузе';
+            }
+            widget.dataset.isActive = isActive;
+        }
+    });
+
+    // Вспомогательная функция getCookie (если ее еще нет)
+    if (typeof getCookie === 'undefined') {
+        function getCookie(name) {
+            // ... (код функции getCookie, который мы писали ранее)
+        }
+    }
+});

@@ -591,3 +591,156 @@ a {
 .btn-add-interval i {
     margin-right: 8px;
 }
+
+/* static/css/style.css */
+
+/* --- НОВЫЕ СТИЛИ ДЛЯ КАРТОЧЕК ЗАДАЧ --- */
+
+/* 1. Контейнер для всех карточек */
+.task-grid {
+    display: grid;
+    /* Создаем ОДНУ колонку */
+    grid-template-columns: 1fr;
+    gap: 1.5rem; /* Расстояние между карточками */
+    /* Ограничиваем максимальную ширину, чтобы не было слишком широко */
+    max-width: 800px;
+    margin: 0 auto; /* Центрируем сетку */
+}
+
+/* 2. Сама карточка */
+.task-card {
+    background-color: var(--content-bg);
+    border: 1px solid var(--border-color);
+    border-radius: 12px;
+    box-shadow: 0 1px 3px 0 rgb(0 0 0 / 0.07), 0 1px 2px -1px rgb(0 0 0 / 0.07);
+    
+    /* ГЛАВНОЕ: Делаем карточку горизонтальной */
+    display: flex;
+    align-items: stretch; /* Растягиваем элементы по высоте */
+    padding: 1rem;
+    gap: 1.5rem;
+    
+    transition: box-shadow 0.2s;
+}
+.task-card:hover {
+    box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1);
+}
+.task-card.is-inactive {
+    opacity: 0.6;
+}
+
+/* 3. Блок с картинкой (слева) */
+.task-card-image {
+    /* Фиксированная ширина, чтобы все было ровно */
+    width: 100px;
+    height: 100px;
+    flex-shrink: 0; /* Запрещаем сжиматься */
+    border-radius: 8px;
+    background-color: #e9ecef;
+    overflow: hidden; /* Обрезаем все, что не влезает */
+}
+.task-card-image img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+}
+.task-card-image .no-image {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    height: 100%;
+    font-size: 2rem;
+    color: #ced4da;
+}
+
+/* 4. Блок с информацией (в центре) */
+.task-card-info {
+    padding: 0; /* Убираем лишние отступы */
+    flex-grow: 1; /* Занимает все оставшееся место */
+    display: flex;
+    flex-direction: column;
+}
+.task-title {
+    font-size: 1.05rem;
+    font-weight: 600;
+    margin-bottom: 0.5rem;
+}
+.task-ad-id {
+    font-size: 0.8rem;
+    color: #6c757d;
+    margin-bottom: auto; /* Прижимает расписание к низу */
+}
+.task-schedule-display {
+    font-size: 0.8rem;
+    color: #6c757d;
+    display: flex;
+    align-items: center;
+    margin-top: 0.5rem;
+}
+
+/* 5. Блок с управлением (справа) */
+.task-card-controls {
+    padding: 0;
+    border: none;
+    background: none;
+    display: flex;
+    flex-direction: column;
+    align-items: flex-end; /* Прижимаем к правому краю */
+    justify-content: space-between; /* Распределяем элементы по вертикали */
+    width: 120px; /* Фиксированная ширина */
+    flex-shrink: 0;
+}
+
+.actions-widget {
+    display: flex;
+    gap: 0.75rem;
+}
+.action-btn {
+    font-size: 1.1rem; /* Чуть крупнее иконки */
+    padding: 0.25rem;
+}
+
+/* --- Стили для нового индикатора статуса --- */
+.status-widget-new {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    cursor: pointer;
+    padding: 4px 8px;
+    border-radius: 16px; /* Делаем его "капсулой" */
+    transition: background-color 0.3s;
+    user-select: none; /* Запрещаем выделение текста */
+}
+.status-indicator {
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+    transition: background-color 0.3s;
+}
+.status-text {
+    font-size: 0.9rem;
+    font-weight: 500;
+    transition: color 0.3s;
+}
+
+/* Стили для неактивного состояния */
+.status-widget-new.is-inactive {
+    background-color: #e9ecef;
+}
+.status-widget-new.is-inactive .status-indicator {
+    background-color: #dc3545; /* Красный */
+}
+.status-widget-new.is-inactive .status-text {
+    color: #6c757d;
+}
+
+/* Стили для активного состояния */
+.status-widget-new.is-active {
+    background-color: #dcfce7; /* Светло-зеленый фон */
+}
+.status-widget-new.is-active .status-indicator {
+    background-color: #22c55e; /* Ярко-зеленый */
+}
+.status-widget-new.is-active .status-text {
+    color: #166534; /* Темно-зеленый */
+}
