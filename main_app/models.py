@@ -9,11 +9,14 @@ from django.dispatch import receiver
 class BiddingTask(models.Model):
     user = models.ForeignKey(User, on_delete=models.CASCADE, verbose_name="Пользователь")
     ad_id = models.BigIntegerField(verbose_name="ID объявления Avito")
+    title = models.CharField(max_length=255, blank=True, verbose_name="Название объявления")
+    image_url = models.URLField(max_length=1000, blank=True, null=True, verbose_name="URL картинки")
     search_url = models.URLField(max_length=1000, verbose_name="URL для поиска")
     min_price = models.DecimalField(max_digits=10, decimal_places=2, default=10.00, verbose_name="Мин. цена")
     max_price = models.DecimalField(max_digits=10, decimal_places=2, default=50.00, verbose_name="Макс. цена")
     bid_step = models.DecimalField(max_digits=10, decimal_places=2, default=1.00, verbose_name="Шаг ставки (₽)")
-    target_position = models.PositiveIntegerField(default=10, verbose_name="Целевая позиция (до)")
+    target_position_min = models.PositiveIntegerField(default=1, verbose_name="Целевая позиция (от)")
+    target_position_max = models.PositiveIntegerField(default=10, verbose_name="Целевая позиция (до)")
     
     # Мы будем использовать JSONField, а для SQLite Django сам создаст эмуляцию через TextField.
     # Нам не нужно делать if/else.

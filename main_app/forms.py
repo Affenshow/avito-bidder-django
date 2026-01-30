@@ -7,7 +7,8 @@ class BiddingTaskForm(forms.ModelForm):
         model = BiddingTask
         # Указываем поля, которые пользователь сможет заполнить.
         # Поле 'user' мы заполним автоматически.
-        fields = ['ad_id', 'search_url', 'min_price', 'max_price','bid_step', 'target_position', 'is_active']
+        fields = ['ad_id', 'search_url', 'min_price', 'max_price', 'target_position_min', 'target_position_max', 'bid_step', 'is_active']
+
 
 
 class UserProfileForm(forms.ModelForm):

@@ -10,6 +10,8 @@
     
     <!-- Подключаем наши стили -->
     <link rel="stylesheet" href="{% static 'css/style.css' %}">
+    <!-- Подключаем стили для noUiSlider -->
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/noUiSlider/15.7.1/nouislider.min.css" rel="stylesheet">
     
     <title>{% block title %}Avito Bidder{% endblock %}</title>
 </head>
@@ -70,7 +72,9 @@
     <div class="sidebar-overlay" data-visible="false"></div>
 
     <!-- Подключаем наш JavaScript-файл -->
+     <!-- Подключаем скрипт noUiSlider ПЕРЕД вашим main.js -->
     <script src="{% static 'js/main.js' %}"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/noUiSlider/15.7.1/nouislider.min.js"></script>
 
 </body>
 </html>

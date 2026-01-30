@@ -12,6 +12,7 @@ from .models import BiddingTask, UserProfile, TaskLog
 from .forms import BiddingTaskForm, UserProfileForm
 # --- ПРАВИЛЬНЫЙ, ПОЛНЫЙ ИМПОРТ ---
 from .avito_api import get_avito_access_token, get_avito_user_id, get_balances
+from .tasks import get_ad_position
 
 
 
@@ -42,10 +43,30 @@ def add_task_view(request):
         if form.is_valid():
             task = form.save(commit=False)
             task.user = request.user
+
+            # --- РУЧНОЕ СОХРАНЕНИЕ РАСПИСАНИЯ ---
+            # Берем JSON-строку напрямую из POST-запроса
+            schedule_json = request.POST.get('schedule', '[]')
+            # Просто записываем эту строку в текстовое поле модели
+            task.schedule = schedule_json
+            # --- КОНЕЦ РУЧНОГО СОХРАНЕНИЯ ---
+
+            # Получаем доп. информацию (title, image_url)
+            ad_data = get_ad_position(task.search_url, task.ad_id)
+            if ad_data:
+                task.title = ad_data.get('title')
+                task.image_url = ad_data.get('image_url')
+            
             task.save()
             return redirect('task-list')
+        # Если форма невалидна, мы просто идем дальше
+        # и рендерим ту же страницу, но с формой, содержащей ошибки
     else:
+        # Для GET-запроса создаем пустую форму
         form = BiddingTaskForm()
+
+    # --- ВОТ ГЛАВНЫЙ RETURN ДЛЯ GET-ЗАПРОСА ---
+    # И для невалидного POST-запроса
     return render(request, 'main_app/add_task.html', {'form': form})
 
 
@@ -58,6 +79,17 @@ class TaskUpdateView(LoginRequiredMixin, UserPassesTestMixin, UpdateView):
     def test_func(self):
         task = self.get_object()
         return self.request.user == task.user
+    
+    # --- ДОБАВЛЯЕМ МЕТОД form_valid ---
+    def form_valid(self, form):
+        # Получаем JSON-строку напрямую из POST-запроса
+        schedule_json = self.request.POST.get('schedule', '[]')
+        # Присваиваем ее объекту перед сохранением
+        self.object = form.save(commit=False)
+        self.object.schedule = schedule_json
+        self.object.save()
+        return super().form_valid(form)
+    # --- КОНЕЦ МЕТОДА ---
 
 
 class TaskDeleteView(LoginRequiredMixin, UserPassesTestMixin, DeleteView):

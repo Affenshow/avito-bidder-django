@@ -1,31 +1,17 @@
 {% extends 'base.html' %}
 {% load static %}
 
-{% comment %}
-    Динамический заголовок в <title>
-    'object' - это переменная, которую Django передает при редактировании.
-{% endcomment %}
 {% block title %}{% if object %}Редактировать задание{% else %}Добавить задание{% endif %} - {{ block.super }}{% endblock %}
 
-
-{% comment %}
-    Динамический заголовок страницы
-{% endcomment %}
 {% block page_title %}{% if object %}Редактировать задание #{{ object.id }}{% else %}Новое задание для биддера{% endif %}{% endblock %}
 
-
-{% comment %}
-    Основной контент - наша форма
-{% endcomment %}
 {% block content %}
 <form method="post" class="form-styled">
     {% csrf_token %}
 
-    <!-- Отображаем общие ошибки формы, если они есть -->
+    <!-- Общие ошибки формы -->
     {% if form.non_field_errors %}
-        <div class="form-errors">
-            {{ form.non_field_errors }}
-        </div>
+        <div class="form-errors">{{ form.non_field_errors }}</div>
     {% endif %}
 
     <!-- ID Объявления -->
@@ -42,7 +28,7 @@
         {% if form.search_url.errors %}<div class="field-errors">{{ form.search_url.errors }}</div>{% endif %}
     </div>
 
-    <!-- Ценовой диапазон в одной строке -->
+    <!-- Ценовой диапазон -->
     <div class="form-row">
         <div class="form-group">
             <label for="{{ form.min_price.id_for_label }}">{{ form.min_price.label }}</label>
@@ -56,19 +42,39 @@
         </div>
     </div>
 
-    <!-- Настройки биддера в одной строке -->
-    <div class="form-row">
-        <div class="form-group">
-            <label for="{{ form.target_position.id_for_label }}">{{ form.target_position.label }}</label>
-            {{ form.target_position }}
-            {% if form.target_position.errors %}<div class="field-errors">{{ form.target_position.errors }}</div>{% endif %}
+    <!-- БЛОК ДЛЯ ПОЛЗУНКА ПОЗИЦИЙ -->
+    <div class="form-group">
+        <label>Целевой диапазон позиций</label>
+        <!-- Сюда JavaScript "нарисует" ползунок -->
+        <div id="position-slider" class="position-slider"></div>
+        <!-- Скрытые поля, которые будут отправляться на бэкенд -->
+        <div style="display: none;">
+            {{ form.target_position_min }}
+            {{ form.target_position_max }}
         </div>
-        <!-- НОВОЕ ПОЛЕ "Шаг ставки" -->
-        <div class="form-group">
-            <label for="{{ form.bid_step.id_for_label }}">{{ form.bid_step.label }}</label>
-            {{ form.bid_step }}
-            {% if form.bid_step.errors %}<div class="field-errors">{{ form.bid_step.errors }}</div>{% endif %}
+        <!-- Отображаем ошибки для этих полей, если они есть -->
+        {% if form.target_position_min.errors %}<div class="field-errors">{{ form.target_position_min.errors }}</div>{% endif %}
+        {% if form.target_position_max.errors %}<div class="field-errors">{{ form.target_position_max.errors }}</div>{% endif %}
+    </div>
+
+    <!-- Шаг ставки -->
+     <div class="form-group">
+        <label for="{{ form.bid_step.id_for_label }}">{{ form.bid_step.label }}</label>
+        {{ form.bid_step }}
+        {% if form.bid_step.errors %}<div class="field-errors">{{ form.bid_step.errors }}</div>{% endif %}
+    </div>
+
+    <!-- Интерфейс для расписания -->
+    <div class="form-group">
+        <label>Расписание работы биддера</label>
+        <div id="schedule-container"></div>
+        <button type="button" id="add-schedule-interval" class="btn-add-interval">
+            <i class="fas fa-plus"></i> Добавить интервал
+        </button>
+        <div style="display: none;">
+            <textarea name="schedule" id="id_schedule_data">{% if form.instance.schedule %}{{ form.instance.schedule }}{% else %}[]{% endif %}</textarea>
         </div>
+        {% if form.schedule.errors %}<div class="field-errors">{{ form.schedule.errors }}</div>{% endif %}
     </div>
 
     <!-- Переключатель "Активен" -->
@@ -85,5 +91,4 @@
         </button>
     </div>
 </form>
-
 {% endblock %}
