@@ -6,6 +6,7 @@ from celery import shared_task
 from typing import Union, List, Dict
 from datetime import datetime
 import json
+import platform
 import undetected_chromedriver as uc
 from selenium import webdriver
 from selenium.webdriver.chrome.service import Service as ChromeService # Переименуем, чтобы не путаться
@@ -20,42 +21,41 @@ logger = logging.getLogger(__name__)
 
 def get_ad_position(search_url: str, ad_id: int) -> Union[Dict, None]:
     """
-    Парсит страницу с помощью undetected-chromedriver,
-    принудительно используя chromedriver 144-й версии.
+    Универсальный парсер: использует Selenium + Webdriver-Manager, 
+    автоматически подстраиваясь под Windows и Linux.
     """
-    
-    # --- Настройки Chrome убраны, так как uc настраивает их сам ---
+    # --- Общие настройки для Chrome ---
+    chrome_options = Options()
+    chrome_options.add_argument("--headless=new")
+    chrome_options.add_argument("--no-sandbox")
+    chrome_options.add_argument("--disable-dev-shm-usage")
+    chrome_options.add_argument("--window-size=1920,1080")
+    chrome_options.add_argument("user-agent=Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/121.0.0.0 Safari/537.36")
     
     driver = None
     try:
-        logger.info("--- [SELENIUM-UC] Запуск Undetected Chrome...")
-        
-        # --- ГЛАВНОЕ ИЗМЕНЕНИЕ ---
-        # Мы используем uc.Chrome и явно указываем ему версию
-        driver = uc.Chrome(
-            headless=True, 
-            use_subprocess=False,
-            version_main=144 # <-- ЯВНО УКАЗЫВАЕМ ВЕРСИЮ
+        # --- "Умная" инициализация драйвера ---
+        if platform.system() == "Linux":
+            # На сервере (Linux) мы явно указываем, где лежит сам браузер
+            logger.info("--- [SELENIUM] ОС: Linux. Указывается путь к Chrome.")
+            chrome_options.binary_location = "/usr/bin/google-chrome-stable"
+
+        logger.info("--- [SELENIUM] Запуск Chrome через webdriver-manager...")
+        # webdriver-manager сам найдет, скачает и запустит chromedriver,
+        # совместимый с установленным Chrome.
+        driver = webdriver.Chrome(
+            service=ChromeService(ChromeDriverManager().install()), 
+            options=chrome_options
         )
         
-        # Устанавливаем таймаут ожидания загрузки страницы
         driver.set_page_load_timeout(30)
         
-        logger.info(f"--- [SELENIUM-UC] Переход по URL: {search_url} ---")
+        logger.info(f"--- [SELENIUM] Переход по URL: {search_url} ---")
         driver.get(search_url)
         
-        driver.save_screenshot("debug_selenium_page.png")
-        logger.info("--- [SELENIUM-UC] Скриншот страницы сохранен.")
-
-        # --- НОВЫЙ БЛОК ДИАГНОСТИКИ ---
-        with open("debug_selenium_source.html", "w", encoding="utf-8") as f:
-          f.write(driver.page_source)
-        logger.info("--- [SELENIUM] Исходный код страницы сохранен в debug_selenium_source.html ---")
-    # --- КОНЕЦ БЛОКА ---
-
         # Ищем все блоки объявлений
         all_ads = driver.find_elements(By.CSS_SELECTOR, "div[data-marker='item']")
-        logger.info(f"--- [SELENIUM-UC] Найдено {len(all_ads)} объявлений на странице.")
+        logger.info(f"--- [SELENIUM] Найдено {len(all_ads)} объявлений на странице.")
 
         if not all_ads:
             return None
@@ -69,33 +69,29 @@ def get_ad_position(search_url: str, ad_id: int) -> Union[Dict, None]:
                 try:
                     title_tag = ad_element.find_element(By.CSS_SELECTOR, "a[data-marker='item-title']")
                     title = title_tag.text
-                except Exception as e:
-                    logger.warning(f"Не удалось найти заголовок: {e}")
+                except Exception:
+                    logger.warning("Не удалось найти заголовок.")
 
                 try:
                     img_tag = ad_element.find_element(By.TAG_NAME, "img")
                     image_url = img_tag.get_attribute('src')
                 except Exception:
-                     logger.warning("Не удалось найти картинку по тегу <img>")
+                     logger.warning("Не удалось найти картинку.")
                 
-                logger.info(f"--- [SELENIUM-UC] Найдено объявление {ad_id} на позиции {position}! ---")
+                logger.info(f"--- [SELENIUM] Найдено объявление {ad_id} на позиции {position}! ---")
                 return {"position": position, "title": title, "image_url": image_url}
         
-        logger.warning(f"--- [SELENIUM-UC] Объявление {ad_id} НЕ найдено на странице.")
+        logger.warning(f"--- [SELENIUM] Объявление {ad_id} НЕ найдено на странице.")
         return None
     
     except Exception as e:
-        logger.error(f"--- [SELENIUM-UC] КРИТИЧЕСКАЯ ОШИБКА: {e} ---")
-        # Если есть скриншот ошибки, это очень полезно
-        if driver:
-            driver.save_screenshot("debug_ERROR_selenium.png")
-            logger.info("--- [SELENIUM-UC] Скриншот ОШИБКИ сохранен.")
+        logger.error(f"--- [SELENIUM] КРИТИЧЕСКАЯ ОШИБКА: {e}")
         return None
         
     finally:
         if driver:
             driver.quit()
-            logger.info("--- [SELENIUM-UC] Драйвер Chrome закрыт.")
+            logger.info("--- [SELENIUM] Драйвер Chrome закрыт.")
 
 
 def is_time_in_schedule(schedule: List[dict]) -> bool:
