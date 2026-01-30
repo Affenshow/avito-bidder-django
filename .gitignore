@@ -6,3 +6,6 @@ __pycache__/
 .env
 avito_bidder/settings/local.py
 avito_bidder/settings/production.py
+# Отладочные файлы
+debug_*.html
+debug_*.png
