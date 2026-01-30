@@ -17,7 +17,7 @@
         <h4>Объявление: {{ task.ad_id }}</h4>
         <p>URL для поиска: <a href="{{ task.search_url }}" target="_blank">открыть</a></p>
         <p>Цель: до {{ task.target_position }} места</p>
-        <p>Ценовой диапазон: от {{ task.min_price }} до {{ task.max_price }} ₽</p>
+        <p>... от {{ task.min_price|floatformat:"-0" }} до {{ task.max_price|floatformat:"-0" }} ₽</p>
     </div>
 
     <h3 class="logs-header">Журнал событий</h3>

@@ -165,3 +165,32 @@ document.addEventListener('DOMContentLoaded', function() {
         }
     }
 });
+
+// static/js/main.js
+
+document.addEventListener('DOMContentLoaded', function() {
+    // ... (код для меню, расписания, ползунка) ...
+
+
+    // --- НОВЫЙ МОДУЛЬ: Очистка десятичных полей ---
+    function cleanDecimalFields() {
+        // Указываем ID полей, которые нужно "почистить"
+        const fieldIds = ['id_min_price', 'id_max_price', 'id_bid_step'];
+
+        fieldIds.forEach(id => {
+            const input = document.getElementById(id);
+            if (input && input.value) {
+                // Превращаем "50.00" в 50.0, затем в 50
+                const floatValue = parseFloat(input.value);
+                // Проверяем, является ли число целым
+                if (floatValue === parseInt(floatValue, 10)) {
+                    input.value = parseInt(floatValue, 10);
+                }
+            }
+        });
+    }
+
+    // Запускаем функцию сразу после загрузки страницы
+    cleanDecimalFields();
+
+});
