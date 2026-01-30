@@ -89,8 +89,8 @@ CELERY_RESULT_SERIALIZER = 'json'
 CELERY_TIMEZONE = 'Europe/Moscow'
 
 CELERY_BEAT_SCHEDULE = {
-    'run-all-bidders-every-10-minutes': {
+    'run-all-bidders-every-5-minutes': {
         'task': 'main_app.tasks.trigger_all_active_tasks',
-        'schedule': crontab(minute='*/10'),
+        'schedule': crontab(minute='*/5'),
     },
 }
