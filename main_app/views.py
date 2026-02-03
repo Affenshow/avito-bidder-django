@@ -1,12 +1,12 @@
 # main_app/views.py
-
+import json
+import logging
 from django.shortcuts import render, redirect, get_object_or_404
 from django.urls import reverse_lazy
 from django.views.generic.edit import CreateView, UpdateView, DeleteView
 from django.contrib.auth.forms import UserCreationForm
 from django.contrib.auth.decorators import login_required
 from django.contrib.auth.mixins import LoginRequiredMixin, UserPassesTestMixin
-import json
 from .tasks import update_task_details
 # Импорты из нашего приложения
 from .models import BiddingTask, UserProfile, TaskLog
@@ -16,7 +16,7 @@ from .avito_api import get_avito_access_token, get_avito_user_id, get_balances
 from .tasks import get_ad_position
 
 
-
+logger = logging.getLogger(__name__) # <-- И ЗДЕСЬ
 
 
 @login_required
