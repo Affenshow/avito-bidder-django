@@ -7,6 +7,7 @@ from django.contrib.auth.forms import UserCreationForm
 from django.contrib.auth.decorators import login_required
 from django.contrib.auth.mixins import LoginRequiredMixin, UserPassesTestMixin
 import json
+from .tasks import update_task_details
 # Импорты из нашего приложения
 from .models import BiddingTask, UserProfile, TaskLog
 from .forms import BiddingTaskForm, UserProfileForm
@@ -44,35 +45,32 @@ class SignUpView(CreateView):
 
 @login_required
 def add_task_view(request):
+    """
+    Обрабатывает создание НОВОЙ задачи.
+    """
     if request.method == 'POST':
         form = BiddingTaskForm(request.POST)
         if form.is_valid():
+            # Сохраняем основные данные, введенные пользователем
             task = form.save(commit=False)
             task.user = request.user
-
-            # --- РУЧНОЕ СОХРАНЕНИЕ РАСПИСАНИЯ ---
-            # Берем JSON-строку напрямую из POST-запроса
-            schedule_json = request.POST.get('schedule', '[]')
-            # Просто записываем эту строку в текстовое поле модели
-            task.schedule = schedule_json
-            # --- КОНЕЦ РУЧНОГО СОХРАНЕНИЯ ---
-
-            # Получаем доп. информацию (title, image_url)
-            ad_data = get_ad_position(task.search_url, task.ad_id)
-            if ad_data:
-                task.title = ad_data.get('title')
-                task.image_url = ad_data.get('image_url')
             
-            task.save()
+            # Вручную сохраняем расписание, так как оно не в форме
+            schedule_json = request.POST.get('schedule', '[]')
+            task.schedule = schedule_json
+
+            task.save() # Сохраняем, чтобы получить task.id
+
+            # --- ЗАПУСКАЕМ ФОНОВУЮ ЗАДАЧУ ---
+            # Передаем ей ID только что созданной задачи
+            update_task_details.delay(task.id)
+            logger.info(f"Задача #{task.id} создана. Запущена фоновая задача для получения деталей.")
+
             return redirect('task-list')
-        # Если форма невалидна, мы просто идем дальше
-        # и рендерим ту же страницу, но с формой, содержащей ошибки
     else:
-        # Для GET-запроса создаем пустую форму
+        # Для GET-запроса просто показываем пустую форму
         form = BiddingTaskForm()
 
-    # --- ВОТ ГЛАВНЫЙ RETURN ДЛЯ GET-ЗАПРОСА ---
-    # И для невалидного POST-запроса
     return render(request, 'main_app/add_task.html', {'form': form})
 
 
@@ -82,20 +80,29 @@ class TaskUpdateView(LoginRequiredMixin, UserPassesTestMixin, UpdateView):
     template_name = 'main_app/add_task.html'
     success_url = reverse_lazy('task-list')
 
+    def form_valid(self, form):
+        """
+        Переопределяем метод, чтобы вручную сохранить расписание.
+        """
+        # Получаем объект задачи, но пока не сохраняем в БД
+        self.object = form.save(commit=False)
+        
+        # Вручную берем JSON-строку из POST-запроса
+        schedule_json = self.request.POST.get('schedule', '[]')
+        self.object.schedule = schedule_json
+        
+        # Теперь сохраняем все изменения
+        self.object.save()
+        
+        # Мы не будем повторно запускать парсинг title/image при редактировании,
+        # так как они уже должны были быть получены при создании.
+        
+        # Вызываем родительский метод, который сделает редирект
+        return super().form_valid(form)
+
     def test_func(self):
         task = self.get_object()
         return self.request.user == task.user
-    
-    # --- ДОБАВЛЯЕМ МЕТОД form_valid ---
-    def form_valid(self, form):
-        # Получаем JSON-строку напрямую из POST-запроса
-        schedule_json = self.request.POST.get('schedule', '[]')
-        # Присваиваем ее объекту перед сохранением
-        self.object = form.save(commit=False)
-        self.object.schedule = schedule_json
-        self.object.save()
-        return super().form_valid(form)
-    # --- КОНЕЦ МЕТОДА ---
 
 
 class TaskDeleteView(LoginRequiredMixin, UserPassesTestMixin, DeleteView):
