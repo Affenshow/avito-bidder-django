@@ -1,10 +1,12 @@
 import logging
 import platform
 import time
+import random
 import json
+import undetected_chromedriver as uc
 from typing import Union, Dict
 from datetime import datetime
-from seleniumwire import webdriver  # <-- использование selenium-wire с прокси
+from selenium.webdriver.common.by import By
 from selenium.webdriver.chrome.service import Service as ChromeService
 from webdriver_manager.chrome import ChromeDriverManager
 from selenium.webdriver.common.by import By
