@@ -32,7 +32,7 @@ def get_ad_position(search_url: str, ad_id: int) -> Union[Dict, None]:
     options.add_argument("user-agent=Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/121.0.0.0 Safari/537.36")
     
     # --- Ваши настройки прокси ---
-    options.add_argument('--proxy-server=http://aZ2UCaK:EVhaQ2MaR5S@185.234.59.17:20379')
+    options.add_argument(f'--proxy-server=http://uKuNaf:FAjEC5HeK7yt@mproxy.site:17563')
     
     if platform.system() == "Linux":
         options.binary_location = "/usr/bin/google-chrome-stable"
