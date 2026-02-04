@@ -20,7 +20,7 @@ SET_MANUAL_BID_URL = 'https://api.avito.ru/cpxpromo/1/setManual'         # РУ�
 
 def get_avito_access_token(client_id: str, client_secret: str) -> Union[str, None]:
     """Обменивает client_id и client_secret на access_token."""
-    headers = {'Content-Type': 'application/x-www-form-urlencoded'}
+    headers = {'Content-Type': 'application/x-www-form-urlencoded', 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/121.0.0.0 Safari/537.36'}
     data = {'client_id': client_id, 'client_secret': client_secret, 'grant_type': 'client_credentials'}
     try:
         # logger.info(f"[API] Запрос access_token для client_id: {client_id}")
