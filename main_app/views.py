@@ -47,6 +47,7 @@ class SignUpView(CreateView):
 def add_task_view(request):
     """
     Обрабатывает создание НОВОЙ задачи.
+    Мгновенно сохраняет данные и запускает фоновую задачу для парсинга деталей.
     """
     if request.method == 'POST':
         form = BiddingTaskForm(request.POST)
@@ -55,18 +56,22 @@ def add_task_view(request):
             task = form.save(commit=False)
             task.user = request.user
             
-            # Вручную сохраняем расписание, так как оно не в форме
+            # Вручную сохраняем расписание
             schedule_json = request.POST.get('schedule', '[]')
             task.schedule = schedule_json
+            
+            # Устанавливаем "пустые" значения по умолчанию
+            task.title = f"Объявление №{task.ad_id}"
+            task.image_url = None
 
-            task.save() # Сохраняем, чтобы получить task.id
+            task.save()  # Сохраняем, чтобы получить task.id
 
             # --- ЗАПУСКАЕМ ФОНОВУЮ ЗАДАЧУ ---
-            # Передаем ей ID только что созданной задачи
             update_task_details.delay(task.id)
             logger.info(f"Задача #{task.id} создана. Запущена фоновая задача для получения деталей.")
 
             return redirect('task-list')
+        # Если форма невалидна, Django сам отрендерит ее с ошибками ниже
     else:
         # Для GET-запроса просто показываем пустую форму
         form = BiddingTaskForm()
@@ -79,6 +84,31 @@ class TaskUpdateView(LoginRequiredMixin, UserPassesTestMixin, UpdateView):
     form_class = BiddingTaskForm
     template_name = 'main_app/add_task.html'
     success_url = reverse_lazy('task-list')
+
+    def form_valid(self, form):
+        """
+        Переопределяем метод, чтобы вручную сохранить расписание.
+        """
+        self.object = form.save(commit=False)
+        
+        # Вручную берем JSON-строку из POST-запроса
+        schedule_json = self.request.POST.get('schedule', '[]')
+        self.object.schedule = schedule_json
+        
+        # Теперь сохраняем все изменения
+        self.object.save()
+        
+        # Запускаем обновление деталей, если URL поиска изменился
+        if 'search_url' in form.changed_data:
+            update_task_details.delay(self.object.id)
+            logger.info(f"URL для задачи #{self.object.id} изменен. Запущено обновление деталей.")
+
+        # Вызываем родительский метод, который сделает редирект
+        return super().form_valid(form)
+
+    def test_func(self):
+        task = self.get_object()
+        return self.request.user == task.user
 
     def form_valid(self, form):
         """
