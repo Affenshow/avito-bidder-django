@@ -21,10 +21,10 @@ def get_ad_position(search_url: str, ad_id: int, proxy_login=None, proxy_pass=No
     Можно передать индивидуальные прокси для каждого пользователя.
     """
     # --- Настройки прокси ---
-    proxy_login = proxy_login or "AchAGZ"
-    proxy_pass = proxy_pass or "Afep5AGSEnES"
-    proxy_host = proxy_host or "mproxy.site"
-    proxy_port = proxy_port or 20266
+    proxy_login = proxy_login or "aZ2UCa"
+    proxy_pass = proxy_pass or "KEVhaQ2MaR5S"
+    proxy_host = proxy_host or "185.234.59.17"
+    proxy_port = proxy_port or 20379
 
     proxy_url = f'http://{proxy_login}:{proxy_pass}@{proxy_host}:{proxy_port}'
     proxy_options = {

@@ -6,7 +6,7 @@ from typing import Union, Dict
 
 logger = logging.getLogger(__name__)
 
-CHANGE_IP_URL = 'https://changeip.mobileproxy.space/?proxy_key=db0ed177a57d64d7dc8b2e5a772fb8da'
+CHANGE_IP_URL = 'https://ru.shopproxy.net/rotate/2536760/8f1e33d6786598c5287c42132945f8ea'
 
 # --- ENDPOINT'Ы ---
 TOKEN_URL = 'https://api.avito.ru/token/'
