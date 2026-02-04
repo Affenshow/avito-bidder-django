@@ -1,21 +1,22 @@
 import logging
 import platform
-import time
 import random
+import time
 import json
-import undetected_chromedriver as uc
-from typing import Union, Dict
+from typing import Union, Dict, List
 from datetime import datetime
-from selenium.webdriver.common.by import By
-from selenium.webdriver.chrome.service import Service as ChromeService
-from webdriver_manager.chrome import ChromeDriverManager
-from selenium.webdriver.common.by import By
-from selenium.webdriver.chrome.options import Options
-from .avito_api import get_avito_access_token, get_current_ad_price, set_ad_price, rotate_proxy_ip
-from .models import BiddingTask, TaskLog
 
+# --- Импортируем только то, что нужно для Selenium ---
+import undetected_chromedriver as uc
+from selenium.webdriver.common.by import By
+
+# --- Импорты Django и Celery ---
+from celery import shared_task
+from .models import BiddingTask, TaskLog
+from .avito_api import get_avito_access_token, get_current_ad_price, set_ad_price, rotate_proxy_ip
 
 logger = logging.getLogger(__name__)
+
 
 def get_ad_position(search_url: str, ad_id: int) -> Union[Dict, None]:
     """
@@ -27,39 +28,33 @@ def get_ad_position(search_url: str, ad_id: int) -> Union[Dict, None]:
     options.add_argument("--no-sandbox")
     options.add_argument("--disable-dev-shm-usage")
     options.add_argument("--window-size=1920,1080")
-    options.add_argument('--disable-blink-features=AutomationControlled') # <-- Главный "анти-детект" флаг
+    options.add_argument('--disable-blink-features=AutomationControlled')
     options.add_argument("user-agent=Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/121.0.0.0 Safari/537.36")
-
-    # --- Ваши настройки прокси ---
-    proxy_host = "185.234.59.17"
-    proxy_port = 20379
-    proxy_user = "aZ2UCaK"
-    proxy_pass = "EVhaQ2MaR5S"
-    options.add_argument(f'--proxy-server=http://{proxy_user}:{proxy_pass}@{proxy_host}:{proxy_port}')
     
-    # Если мы на Linux (сервере), явно указываем путь к браузеру
+    # --- Ваши настройки прокси ---
+    options.add_argument('--proxy-server=http://aZ2UCaK:EVhaQ2MaR5S@185.234.59.17:20379')
+    
     if platform.system() == "Linux":
         options.binary_location = "/usr/bin/google-chrome-stable"
 
     driver = None
     try:
-        logger.info("--- [SELENIUM-PRO] Запуск...")
+        logger.info("--- [SELENIUM-UC] Запуск...")
         driver = uc.Chrome(options=options, use_subprocess=False)
         driver.set_page_load_timeout(45)
 
-        logger.info(f"--- [SELENIUM-PRO] Переход по URL: {search_url} ---")
+        logger.info(f"--- [SELENIUM-UC] Переход по URL: {search_url} ---")
         driver.get(search_url)
 
-        # --- ИМИТАЦИЯ ЧЕЛОВЕКА ---
-        logger.info("--- [SELENIUM-PRO] Имитирую поведение: жду и скроллю...")
+        # --- Имитация человека ---
+        logger.info("--- [SELENIUM-UC] Имитирую поведение: жду и скроллю...")
         time.sleep(random.uniform(2.5, 4.5))
         driver.execute_script(f"window.scrollBy(0, {random.randint(400, 800)});")
         time.sleep(random.uniform(1.0, 2.5))
-        # --- КОНЕЦ ИМИТАЦИИ ---
-
+        
         # Ищем все блоки объявлений
         all_ads = driver.find_elements(By.CSS_SELECTOR, "div[data-marker='item']")
-        logger.info(f"--- [SELENIUM-PRO] Найдено {len(all_ads)} объявлений на странице.")
+        logger.info(f"--- [SELENIUM-UC] Найдено {len(all_ads)} объявлений на странице.")
 
         if not all_ads:
             driver.save_screenshot("debug_no_ads_found.png")
@@ -80,15 +75,15 @@ def get_ad_position(search_url: str, ad_id: int) -> Union[Dict, None]:
                 except Exception:
                      logger.warning("Не удалось найти картинку.")
                 
-                logger.info(f"--- [SELENIUM-PRO] Найдено объявление {ad_id} на позиции {position}! ---")
+                logger.info(f"--- [SELENIUM-UC] Найдено объявление {ad_id} на позиции {position}! ---")
                 return {"position": position, "title": title, "image_url": image_url}
         
-        logger.warning(f"--- [SELENIUM-PRO] Объявление {ad_id} НЕ найдено на странице.")
+        logger.warning(f"--- [SELENIUM-UC] Объявление {ad_id} НЕ найдено на странице.")
         driver.save_screenshot("debug_ad_not_found.png")
         return None
     
     except Exception as e:
-        logger.error(f"--- [SELENIUM-PRO] КРИТИЧЕСКАЯ ОШИБКА: {e}")
+        logger.error(f"--- [SELENIUM-UC] КРИТИЧЕСКАЯ ОШИБКА: {e}")
         if driver:
             driver.save_screenshot("debug_FATAL_ERROR.png")
         return None
@@ -96,7 +91,7 @@ def get_ad_position(search_url: str, ad_id: int) -> Union[Dict, None]:
     finally:
         if driver:
             driver.quit()
-            logger.info("--- [SELENIUM-PRO] Драйвер Chrome закрыт.")
+            logger.info("--- [SELENIUM-UC] Драйвер Chrome закрыт.")
 
 def is_time_in_schedule(schedule_data) -> bool:
     schedule = []
