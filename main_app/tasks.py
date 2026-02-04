@@ -15,64 +15,58 @@ from .models import BiddingTask, TaskLog
 
 logger = logging.getLogger(__name__)
 
-def get_ad_position(search_url: str, ad_id: int, proxy_login=None, proxy_pass=None, proxy_host=None, proxy_port=None) -> Union[Dict, None]:
+def get_ad_position(search_url: str, ad_id: int) -> Union[Dict, None]:
     """
-    Парсит страницу с помощью Selenium-Wire через мобильный прокси.
-    Можно передать индивидуальные прокси для каждого пользователя.
+    Парсит страницу с помощью "продвинутого" Selenium (undetected-chromedriver),
+    используя прокси и имитацию поведения человека.
     """
-    # --- Настройки прокси ---
-    proxy_login = proxy_login or "aZ2UCa"
-    proxy_pass = proxy_pass or "KEVhaQ2MaR5S"
-    proxy_host = proxy_host or "185.234.59.17"
-    proxy_port = proxy_port or 20379
+    options = uc.ChromeOptions()
+    options.add_argument("--headless=new")
+    options.add_argument("--no-sandbox")
+    options.add_argument("--disable-dev-shm-usage")
+    options.add_argument("--window-size=1920,1080")
+    options.add_argument('--disable-blink-features=AutomationControlled') # <-- Главный "анти-детект" флаг
+    options.add_argument("user-agent=Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/121.0.0.0 Safari/537.36")
 
-    proxy_url = f'http://{proxy_login}:{proxy_pass}@{proxy_host}:{proxy_port}'
-    proxy_options = {
-        'proxy': {
-            'http': proxy_url,
-            'https': proxy_url,
-            'no_proxy': 'localhost,127.0.0.1'
-        }
-    }
-
-    # --- Настройки chrome ---
-    chrome_options = Options()
-    chrome_options.add_argument("--headless=new")
-    chrome_options.add_argument("--no-sandbox")
-    chrome_options.add_argument("--disable-dev-shm-usage")
-    chrome_options.add_argument("--window-size=1920,1080")
-    chrome_options.add_argument("user-agent=Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/121.0.0.0 Safari/537.36")
+    # --- Ваши настройки прокси ---
+    proxy_host = "185.234.59.17"
+    proxy_port = 20379
+    proxy_user = "aZ2UCaK"
+    proxy_pass = "EVhaQ2MaR5S"
+    options.add_argument(f'--proxy-server=http://{proxy_user}:{proxy_pass}@{proxy_host}:{proxy_port}')
+    
+    # Если мы на Linux (сервере), явно указываем путь к браузеру
     if platform.system() == "Linux":
-        chrome_options.binary_location = "/usr/bin/google-chrome-stable"
+        options.binary_location = "/usr/bin/google-chrome-stable"
 
     driver = None
     try:
-        # --- "УМНАЯ" ИНИЦИАЛИЗАЦИЯ v2.0 ---
-        if platform.system() == "Linux":
-            logger.info("--- [SELENIUM] Linux. Используется драйвер из /usr/local/bin/chromedriver.")
-            # Явно указываем путь к нашему скачанному драйверу
-            service = ChromeService(executable_path="/usr/local/bin/chromedriver")
-            driver = webdriver.Chrome(service=service, options=chrome_options, seleniumwire_options=proxy_options)
-        else: # Для Windows
-            logger.info("--- [SELENIUM] Windows. Используется webdriver-manager.")
-            driver = webdriver.Chrome(service=ChromeService(ChromeDriverManager().install()), options=chrome_options, seleniumwire_options=proxy_options)
+        logger.info("--- [SELENIUM-PRO] Запуск...")
+        driver = uc.Chrome(options=options, use_subprocess=False)
+        driver.set_page_load_timeout(45)
 
-        # Логируем внешний IP через прокси для самопроверки
-        driver.get('https://api.ipify.org?format=json')
-        logger.info(f"[PROXY CHECK] Внешний IP через прокси: {driver.page_source}")
-
+        logger.info(f"--- [SELENIUM-PRO] Переход по URL: {search_url} ---")
         driver.get(search_url)
+
+        # --- ИМИТАЦИЯ ЧЕЛОВЕКА ---
+        logger.info("--- [SELENIUM-PRO] Имитирую поведение: жду и скроллю...")
+        time.sleep(random.uniform(2.5, 4.5))
+        driver.execute_script(f"window.scrollBy(0, {random.randint(400, 800)});")
+        time.sleep(random.uniform(1.0, 2.5))
+        # --- КОНЕЦ ИМИТАЦИИ ---
+
+        # Ищем все блоки объявлений
         all_ads = driver.find_elements(By.CSS_SELECTOR, "div[data-marker='item']")
-        logger.info(f"--- [SELENIUM-WIRE] Найдено {len(all_ads)} объявлений на странице.")
+        logger.info(f"--- [SELENIUM-PRO] Найдено {len(all_ads)} объявлений на странице.")
 
         if not all_ads:
+            driver.save_screenshot("debug_no_ads_found.png")
             return None
 
         for index, ad_element in enumerate(all_ads):
             if ad_element.get_attribute('data-item-id') == str(ad_id):
                 position = index + 1
-                title = "Название не найдено"
-                image_url = None
+                title, image_url = "Название не найдено", None
                 try:
                     title_tag = ad_element.find_element(By.CSS_SELECTOR, "a[data-marker='item-title']")
                     title = title_tag.text
@@ -82,23 +76,25 @@ def get_ad_position(search_url: str, ad_id: int, proxy_login=None, proxy_pass=No
                     img_tag = ad_element.find_element(By.TAG_NAME, "img")
                     image_url = img_tag.get_attribute('src')
                 except Exception:
-                    logger.warning("Не удалось найти картинку.")
-                logger.info(f"--- [SELENIUM-WIRE] Найдено объявление {ad_id} на позиции {position}! ---")
+                     logger.warning("Не удалось найти картинку.")
+                
+                logger.info(f"--- [SELENIUM-PRO] Найдено объявление {ad_id} на позиции {position}! ---")
                 return {"position": position, "title": title, "image_url": image_url}
-
-        logger.warning(f"--- [SELENIUM-WIRE] Объявление {ad_id} НЕ найдено на странице.")
+        
+        logger.warning(f"--- [SELENIUM-PRO] Объявление {ad_id} НЕ найдено на странице.")
+        driver.save_screenshot("debug_ad_not_found.png")
         return None
-
+    
     except Exception as e:
-        logger.error(f"--- [SELENIUM-WIRE] КРИТИЧЕСКАЯ ОШИБКА: {e}")
+        logger.error(f"--- [SELENIUM-PRO] КРИТИЧЕСКАЯ ОШИБКА: {e}")
         if driver:
-            driver.save_screenshot("debug_ERROR_selenium.png")
-            logger.info("--- [SELENIUM-WIRE] Скриншот ОШИБКИ сохранен.")
+            driver.save_screenshot("debug_FATAL_ERROR.png")
         return None
+        
     finally:
         if driver:
             driver.quit()
-            logger.info("--- [SELENIUM-WIRE] Драйвер Chrome закрыт.")
+            logger.info("--- [SELENIUM-PRO] Драйвер Chrome закрыт.")
 
 def is_time_in_schedule(schedule_data) -> bool:
     schedule = []
