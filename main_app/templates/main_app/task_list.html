@@ -14,7 +14,10 @@
 {% block content %}
     <div class="task-grid">
         {% for task in tasks %}
+            <!-- Оборачиваем всю карточку в is-inactive, если задача неактивна -->
             <div class="task-card {% if not task.is_active %}is-inactive{% endif %}">
+                
+                <!-- Картинка -->
                 <div class="task-card-image">
                     {% if task.image_url %}
                         <img src="{{ task.image_url }}" alt="{{ task.title }}">
@@ -22,12 +25,27 @@
                         <div class="no-image"><i class="fas fa-camera"></i></div>
                     {% endif %}
                 </div>
+
+                <!-- Информация -->
                 <div class="task-card-info">
                     <h4 class="task-title">
-                        <a href="{% url 'task-detail' pk=task.pk %}">{{ task.title|truncatechars:50 }}</a>
+                        <!-- ССЫЛКА ТЕПЕРЬ ВЕШАЕТСЯ НА ВЕСЬ ЗАГОЛОВОК -->
+                        <a href="{% url 'task-detail' pk=task.pk %}">
+                            {% if task.title and task.title != "Название не найдено" %}
+                                {{ task.title|truncatechars:50 }}
+                            {% else %}
+                                <!-- ЗАГЛУШКА, ЕСЛИ НАЗВАНИЯ НЕТ, НО ССЫЛКА РАБОТАЕТ -->
+                                Объявление №{{ task.ad_id }}
+                            {% endif %}
+                        </a>
                     </h4>
-                    <p class="task-ad-id">Объявление №{{ task.ad_id }}</p>
                     
+                    <!-- Показываем ID, только если есть название -->
+                    {% if task.title and task.title != "Название не найдено" %}
+                        <p class="task-ad-id">Объявление №{{ task.ad_id }}</p>
+                    {% endif %}
+                    
+                    <!-- Расписание -->
                     <div class="task-schedule-display">
                         <i class="fas fa-clock"></i>
                         <span>
@@ -41,14 +59,15 @@
                         </span>
                     </div>
                 </div>
+
+                <!-- Управление -->
                 <div class="task-card-controls">
-                    <!-- НОВЫЙ ВИДЖЕТ СТАТУСА -->
-    <div class="status-widget-new" data-task-id="{{ task.id }}" data-is-active="{{ task.is_active|yesno:'true,false' }}">
-        <div class="status-indicator"></div>
-        <span class="status-text">
-            {% if task.is_active %}Активен{% else %}На паузе{% endif %}
-        </span>
-    </div>
+                    <div class="status-widget-new" data-task-id="{{ task.id }}" data-is-active="{{ task.is_active|yesno:'true,false' }}">
+                        <div class="status-indicator"></div>
+                        <span class="status-text">
+                            {% if task.is_active %}Активен{% else %}На паузе{% endif %}
+                        </span>
+                    </div>
                     <div class="actions-widget">
                         <a href="{% url 'task-edit' pk=task.pk %}" class="action-btn" title="Редактировать"><i class="fas fa-pencil-alt"></i></a>
                         <a href="{% url 'task-delete' pk=task.pk %}" class="action-btn" title="Удалить"><i class="fas fa-trash-alt"></i></a>
@@ -60,3 +79,4 @@
         {% endfor %}
     </div>
 {% endblock %}
+
