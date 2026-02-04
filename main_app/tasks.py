@@ -151,12 +151,7 @@ def run_bidding_for_task(task_id: int):
         return
 
     # --- 4. МЕНЯЕМ IP-АДРЕС ПРОКСИ (НОВЫЙ ШАГ) ---
-    ip_changed = rotate_proxy_ip()
-    if ip_changed:
-        TaskLog.objects.create(task=task, message="IP-адрес прокси успешно сменен.")
-        time.sleep(10) # Даем 10 секунд на "прогрев" нового IP
-    else:
-        TaskLog.objects.create(task=task, message="Не удалось сменить IP-адрес прокси. Работаем со старым.", level='WARNING')
+    
 
 
     # --- 5. Получаем актуальную информацию с Avito ---
@@ -208,6 +203,8 @@ def run_bidding_for_task(task_id: int):
 @shared_task
 def trigger_all_active_tasks():
     logger.info(">>> ПЛАНИРОВЩИК: Поиск активных задач...")
+    rotate_proxy_ip()
+    time.sleep(10) # Даем IP "прогреться"
     active_tasks = BiddingTask.objects.filter(is_active=True)
     for task in active_tasks:
         run_bidding_for_task.delay(task.id)
