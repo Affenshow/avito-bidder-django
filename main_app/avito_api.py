@@ -6,6 +6,8 @@ from typing import Union, Dict
 
 logger = logging.getLogger(__name__)
 
+CHANGE_IP_URL = 'https://changeip.mobileproxy.space/?proxy_key=db0ed177a57d64d7dc8b2e5a772fb8da'
+
 # --- ENDPOINT'Ы ---
 TOKEN_URL = 'https://api.avito.ru/token/'
 USER_INFO_URL = 'https://api.avito.ru/core/v1/accounts/self'
@@ -145,3 +147,15 @@ def set_ad_price(ad_id: int, new_price: float, access_token: str) -> bool:
             logger.error(f"--- [CPxPromo API] Ответ сервера: {e.response.text}")
         return False
 
+
+def rotate_proxy_ip():
+    """Отправляет запрос на смену IP-адреса прокси."""
+    try:
+        logger.info("--- [PROXY] Отправка запроса на смену IP...")
+        response = requests.get(CHANGE_IP_URL, timeout=30)
+        response.raise_for_status()
+        logger.info(f"--- [PROXY] IP успешно сменен! Ответ: {response.text}")
+        return True
+    except Exception as e:
+        logger.error(f"--- [PROXY] Ошибка при смене IP: {e}")
+        return False
