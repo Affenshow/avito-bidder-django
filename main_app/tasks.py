@@ -179,9 +179,9 @@ def run_bidding_for_task(self, task_id: int):
                     if current_price is None:
                         TaskLog.objects.create(task=task, message="Не удалось получить цену.", level='ERROR')
                     else:
-                                            # Умная логика ставки с экономией
+                                                            # Умная логика ставки с экономией при хорошей позиции
                      range_size = task.target_position_max - task.target_position_min + 1
-                    good_position_threshold = task.target_position_min + range_size // 2  # верхняя половина — понижаем
+                    good_position_threshold = task.target_position_min + (range_size // 2)  # верхняя половина диапазона — понижаем
 
                     if position > task.target_position_max:
                         # Плохо — повышаем
@@ -189,14 +189,14 @@ def run_bidding_for_task(self, task_id: int):
                         if new_price <= float(task.max_price):
                             success = set_ad_price(task.ad_id, new_price, access_token)
                             if success:
-                                TaskLog.objects.create(task=task, message=f"↑ Повышена до {new_price} ₽ (позиция {position} > цели)", level='WARNING')
+                                TaskLog.objects.create(task=task, message=f"↑ Повышена до {new_price} ₽ (позиция {position} > {task.target_position_max})", level='WARNING')
                             else:
                                 TaskLog.objects.create(task=task, message="Ошибка повышения ставки", level='ERROR')
                         else:
                             TaskLog.objects.create(task=task, message=f"Достигнут максимум {task.max_price} ₽", level='WARNING')
 
                     elif position <= good_position_threshold:
-                        # Хорошая позиция — понижаем для экономии
+                        # Хорошая позиция (верхняя половина) — понижаем для экономии
                         new_price = float(current_price) - float(task.bid_step)
                         if new_price >= float(task.min_price):
                             success = set_ad_price(task.ad_id, new_price, access_token)
