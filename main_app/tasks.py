@@ -45,7 +45,7 @@ def get_ad_position(search_url: str, ad_id: int) -> Union[Dict, None]:
         logger.info(f"--- [REQUESTS] Запрос к {search_url} через прокси...")
         
         # Делаем запрос с прокси и таймаутом
-        response = requests.get(search_url, headers=headers, proxies=proxies, timeout=20)
+        response = requests.get(search_url, headers=headers, proxies=proxies, timeout=30)
         
         # Проверяем, что Avito не заблокировал нас
         response.raise_for_status()
@@ -179,12 +179,9 @@ def run_bidding_for_task(self, task_id: int):
                     if current_price is None:
                         TaskLog.objects.create(task=task, message="Не удалось получить цену.", level='ERROR')
                     else:
-                                                            # Умная логика ставки с экономией при хорошей позиции
-                     range_size = task.target_position_max - task.target_position_min + 1
-                    good_position_threshold = task.target_position_min + (range_size // 2)  # верхняя половина диапазона — понижаем
-
-                    if position > task.target_position_max:
-                        # Плохо — повышаем
+                                                          # Умная логика ставки — экономия при любой позиции в норме или лучше
+                     if position > task.target_position_max:
+                        # Плохо — повышаем, чтобы вернуться в цель
                         new_price = float(current_price) + float(task.bid_step)
                         if new_price <= float(task.max_price):
                             success = set_ad_price(task.ad_id, new_price, access_token)
@@ -195,19 +192,17 @@ def run_bidding_for_task(self, task_id: int):
                         else:
                             TaskLog.objects.create(task=task, message=f"Достигнут максимум {task.max_price} ₽", level='WARNING')
 
-                    elif position <= good_position_threshold:
-                        # Хорошая позиция (верхняя половина) — понижаем для экономии
+                     else:
+                        # Норма или лучше — понижаем для экономии
                         new_price = float(current_price) - float(task.bid_step)
                         if new_price >= float(task.min_price):
                             success = set_ad_price(task.ad_id, new_price, access_token)
                             if success:
-                                TaskLog.objects.create(task=task, message=f"↓ Понижена до {new_price} ₽ (экономия, позиция {position} хорошая)", level='INFO')
+                                TaskLog.objects.create(task=task, message=f"↓ Понижена до {new_price} ₽ (экономия, позиция {position} в норме или лучше)", level='INFO')
                             else:
                                 TaskLog.objects.create(task=task, message="Ошибка понижения ставки", level='ERROR')
                         else:
-                            TaskLog.objects.create(task=task, message=f"Достигнут минимум {task.min_price} ₽", level='INFO')
-                    else:
-                        TaskLog.objects.create(task=task, message="Позиция в норме — ставка не менялась")
+                            TaskLog.objects.create(task=task, message=f"Достигнут минимум {task.min_price} ₽ — ставка не меняется", level='INFO')
 
         TaskLog.objects.create(task=task, message="Цикл завершён")
 
