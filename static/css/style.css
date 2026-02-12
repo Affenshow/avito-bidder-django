@@ -744,3 +744,11 @@ a {
 .status-widget-new.is-active .status-text {
     color: #166534; /* Темно-зеленый */
 }
+
+.badge {
+    font-size: 1rem;
+    padding: 0.5em 1em;
+}
+.bg-danger { background-color: #dc3545 !important; color: white; }
+.bg-warning { background-color: #ffc107 !important; color: black; }
+.bg-success { background-color: #28a745 !important; color: white; }

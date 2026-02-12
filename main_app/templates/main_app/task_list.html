@@ -14,7 +14,6 @@
 {% block content %}
     <div class="task-grid">
         {% for task in tasks %}
-            <!-- Оборачиваем всю карточку в is-inactive, если задача неактивна -->
             <div class="task-card {% if not task.is_active %}is-inactive{% endif %}">
                 
                 <!-- Картинка -->
@@ -29,24 +28,44 @@
                 <!-- Информация -->
                 <div class="task-card-info">
                     <h4 class="task-title">
-                        <!-- ССЫЛКА ТЕПЕРЬ ВЕШАЕТСЯ НА ВЕСЬ ЗАГОЛОВОК -->
                         <a href="{% url 'task-detail' pk=task.pk %}">
                             {% if task.title and task.title != "Название не найдено" %}
                                 {{ task.title|truncatechars:50 }}
                             {% else %}
-                                <!-- ЗАГЛУШКА, ЕСЛИ НАЗВАНИЯ НЕТ, НО ССЫЛКА РАБОТАЕТ -->
                                 Объявление №{{ task.ad_id }}
                             {% endif %}
                         </a>
                     </h4>
                     
-                    <!-- Показываем ID, только если есть название -->
                     {% if task.title and task.title != "Название не найдено" %}
                         <p class="task-ad-id">Объявление №{{ task.ad_id }}</p>
                     {% endif %}
-                    
+
+                 <!-- Текущая позиция с цветом -->
+                    <div class="mt-3">
+                        <strong>Позиция сейчас:</strong>
+                        {% if task.current_position %}
+                            <span class="ms-2 fw-bold {% if task.current_position > task.target_position_max %}text-danger{% elif task.current_position <= task.target_position_min %}text-warning{% else %}text-success{% endif %}">
+                                {{ task.current_position }}
+                            </span>
+                            <small class="text-muted ms-2">(цель: {{ task.target_position_min }}–{{ task.target_position_max }})</small>
+                        {% else %}
+                            <span class="text-muted ms-2">Не определена</span>
+                        {% endif %}
+                    </div>
+                    <!-- Текущая ставка -->
+                    <div class="mt-2">
+                        <strong>Ставка:</strong>
+                        {% if task.current_price %}
+                            {{ task.current_price }} ₽
+                            <small class="text-muted ms-2">(макс: {{ task.max_price }} ₽)</small>
+                        {% else %}
+                            —
+                        {% endif %}
+                    </div>
+
                     <!-- Расписание -->
-                    <div class="task-schedule-display">
+                    <div class="task-schedule-display mt-3">
                         <i class="fas fa-clock"></i>
                         <span>
                             {% if task.schedule_list %}
@@ -79,4 +98,3 @@
         {% endfor %}
     </div>
 {% endblock %}
-
