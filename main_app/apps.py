@@ -8,4 +8,5 @@ class MainAppConfig(AppConfig):
     def ready(self):
         # Импортируем сигналы, чтобы Django о них узнал
         # noinspection PyUnresolvedReferences
-        import main_app.models 
+        import main_app.models
+        import main_app.signals

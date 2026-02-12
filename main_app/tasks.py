@@ -5,6 +5,7 @@ import random
 import json
 import undetected_chromedriver as uc
 import requests
+from django.utils import timezone
 from bs4 import BeautifulSoup
 from typing import Union, Dict
 from datetime import datetime
@@ -120,95 +121,97 @@ def is_time_in_schedule(schedule_data) -> bool:
 
 from celery import shared_task
 
-@shared_task
-def run_bidding_for_task(task_id: int):
+@shared_task(bind=True, max_retries=5, default_retry_delay=300)
+def run_bidding_for_task(self, task_id: int):
     """
-    Основная, полностью рабочая логика биддера.
+    Биддер с самопланированием — каждое объявление в своём времени.
     """
-    # --- 1. Получаем задачу и проверяем, активна ли она ---
     try:
         task = BiddingTask.objects.get(id=task_id, is_active=True)
     except BiddingTask.DoesNotExist:
-        logger.warning(f"Задача #{task_id} больше не существует или выключена. Пропускаем.")
+        logger.info(f"Задача {task_id} удалена или отключена.")
         return
 
-    # --- 2. Проверяем расписание ---
+    # Защита от слишком частых запусков (не чаще 3 минут)
+    last_log = TaskLog.objects.filter(task=task).order_by('-timestamp').first()
+    if last_log and (timezone.now() - last_log.timestamp).total_seconds() < 180:
+        logger.info(f"Задача {task_id} слишком частая — пропуск")
+        if task.is_active:
+            delay = 300 + random.randint(-120, 120)
+            run_bidding_for_task.apply_async(args=[task_id], countdown=delay)
+        return
+
     if not is_time_in_schedule(task.schedule):
-        logger.info(f"Задача #{task_id} неактивна по расписанию. Пропускаем.")
-        return
-
-    TaskLog.objects.create(task=task, message=f"Запуск биддера для объявления {task.ad_id}.")
-
-    # --- 3. Получаем токен доступа к API ---
-    profile = task.user.profile
-    if not profile.avito_client_id or not profile.avito_client_secret:
-        TaskLog.objects.create(task=task, message="API-ключи не настроены. Пропуск.", level='ERROR')
-        return
-    
-    access_token = get_avito_access_token(profile.avito_client_id, profile.avito_client_secret)
-    if not access_token:
-        TaskLog.objects.create(task=task, message="Не удалось получить токен доступа.", level='ERROR')
-        return
-
-    # --- 4. МЕНЯЕМ IP-АДРЕС ПРОКСИ (НОВЫЙ ШАГ) ---
-    
-
-
-    # --- 5. Получаем актуальную информацию с Avito ---
-    ad_data = get_ad_position(task.search_url, task.ad_id)
-    if ad_data is None:
-        TaskLog.objects.create(task=task, message="Не удалось получить информацию с Avito (ошибка парсера).", level='ERROR')
-        return
-    
-    position = ad_data.get("position")
-    TaskLog.objects.create(task=task, message=f"Текущая позиция: {position}. Цель: [{task.target_position_min} - {task.target_position_max}].")
-
-    # --- 6. Получаем реальную текущую цену через API ---
-    current_price = get_current_ad_price(task.ad_id, access_token)
-    if current_price is None:
-        TaskLog.objects.create(task=task, message="Не удалось получить текущую цену через API.", level='ERROR')
-        return
-    TaskLog.objects.create(task=task, message=f"Текущая ставка: {current_price} ₽.")
-
-    # --- 7. "Умный" алгоритм биддера ---
-    if position > task.target_position_max:
-        # --- ЛОГИКА ПОВЫШЕНИЯ ---
-        new_price = float(current_price) + float(task.bid_step)
-        if new_price <= float(task.max_price):
-            success = set_ad_price(task.ad_id, new_price, access_token)
-            if success:
-                TaskLog.objects.create(task=task, message=f"Позиция {position} > {task.target_position_max}. Ставка повышена до {new_price} ₽.", level='WARNING')
-            else:
-                TaskLog.objects.create(task=task, message=f"Позиция {position} > {task.target_position_max}. НЕ УДАЛОСЬ повысить ставку.", level='ERROR')
-        else:
-            TaskLog.objects.create(task=task, message=f"Достигнута макс. ставка {task.max_price} ₽.", level='WARNING')
-
-    elif position < task.target_position_min:
-        # --- ЛОГИКА ПОНИЖЕНИЯ ---
-        new_price = float(current_price) - float(task.bid_step)
-        if new_price >= float(task.min_price):
-            success = set_ad_price(task.ad_id, new_price, access_token)
-            if success:
-                TaskLog.objects.create(task=task, message=f"Экономия: позиция {position} < {task.target_position_min}. Ставка понижена до {new_price} ₽.", level='INFO')
-            else:
-                TaskLog.objects.create(task=task, message=f"Экономия: НЕ УДАЛОСЬ понизить ставку.", level='ERROR')
-        else:
-            TaskLog.objects.create(task=task, message=f"Достигнута мин. ставка {task.min_price} ₽.", level='INFO')
-    
+        logger.info(f"Задача {task_id} не по расписанию — пропуск")
     else:
-        TaskLog.objects.create(task=task, message="Позиция в целевом диапазоне. Ставка не изменена.")
+        TaskLog.objects.create(task=task, message=f"Запуск биддера для {task.ad_id}")
 
-    TaskLog.objects.create(task=task, message="Биддер завершил работу.")
+        # Смена IP перед парсингом
+        rotate_proxy_ip()
+        time.sleep(random.uniform(10, 25))
 
-@shared_task
-def trigger_all_active_tasks():
-    logger.info(">>> ПЛАНИРОВЩИК: Поиск активных задач...")
-    rotate_proxy_ip()
-    time.sleep(10) # Даем IP "прогреться"
-    active_tasks = BiddingTask.objects.filter(is_active=True)
-    for task in active_tasks:
-        run_bidding_for_task.delay(task.id)
-    logger.info(f">>> ПЛАНИРОВЩИК: Запущено {active_tasks.count()} задач.")
+        profile = task.user.profile
+        if not profile.avito_client_id or not profile.avito_client_secret:
+            TaskLog.objects.create(task=task, message="API-ключи не настроены.", level='ERROR')
+        else:
+            access_token = get_avito_access_token(profile.avito_client_id, profile.avito_client_secret)
+            if not access_token:
+                TaskLog.objects.create(task=task, message="Не удалось получить токен.", level='ERROR')
+            else:
+                ad_data = get_ad_position(task.search_url, task.ad_id)
+                if ad_data is None:
+                    TaskLog.objects.create(task=task, message="Ошибка парсера позиции.", level='ERROR')
+                else:
+                    position = ad_data.get("position")
+                    current_price = get_current_ad_price(task.ad_id, access_token)
+
+                    # Сохраняем для интерфейса
+                    task.current_position = position
+                    if current_price is not None:
+                        task.current_price = current_price
+                    task.save(update_fields=['current_position', 'current_price'])
+
+                    TaskLog.objects.create(
+                        task=task,
+                        message=f"Позиция: {position} (цель {task.target_position_min}–{task.target_position_max}), ставка: {current_price or '—'} ₽"
+                    )
+
+                    if current_price is None:
+                        TaskLog.objects.create(task=task, message="Не удалось получить цену.", level='ERROR')
+                    else:
+                        # Умная логика ставки
+                        if position > task.target_position_max:
+                            new_price = float(current_price) + float(task.bid_step)
+                            if new_price <= float(task.max_price):
+                                success = set_ad_price(task.ad_id, new_price, access_token)
+                                if success:
+                                    TaskLog.objects.create(task=task, message=f"↑ Повышена до {new_price} ₽ (позиция {position} > цели)", level='WARNING')
+                                else:
+                                    TaskLog.objects.create(task=task, message="Ошибка повышения ставки", level='ERROR')
+                            else:
+                                TaskLog.objects.create(task=task, message=f"Достигнут максимум {task.max_price} ₽", level='WARNING')
+
+                        elif position < task.target_position_min - 3:  # понижаем, если позиция сильно лучше цели (запас 3 позиции)
+                            new_price = float(current_price) - float(task.bid_step)
+                            if new_price >= float(task.min_price):
+                                success = set_ad_price(task.ad_id, new_price, access_token)
+                                if success:
+                                    TaskLog.objects.create(task=task, message=f"↓ Понижена до {new_price} ₽ (экономия, позиция {position})", level='INFO')
+                                else:
+                                    TaskLog.objects.create(task=task, message="Ошибка понижения ставки", level='ERROR')
+                            else:
+                                TaskLog.objects.create(task=task, message=f"Достигнут минимум {task.min_price} ₽", level='INFO')
+                        else:
+                            TaskLog.objects.create(task=task, message="Позиция в норме — ставка не менялась")
+
+        TaskLog.objects.create(task=task, message="Цикл завершён")
+
+    # Самопланирование — каждые 5–7 минут рандомно
+    if task.is_active:
+        delay = 300 + random.randint(-120, 120)
+        logger.info(f"Задача {task_id} перезапустится через {delay} сек")
+        run_bidding_for_task.apply_async(args=[task_id], countdown=delay)
+
 
 @shared_task
 def update_task_details(task_id: int):

@@ -4,6 +4,8 @@ from django.contrib.auth.models import User
 from encrypted_model_fields.fields import EncryptedCharField
 from django.db.models.signals import post_save
 from django.dispatch import receiver
+from celery import current_app
+import random
 
 # --- МОДЕЛЬ ЗАДАЧИ ---
 class BiddingTask(models.Model):
@@ -17,7 +19,21 @@ class BiddingTask(models.Model):
     bid_step = models.DecimalField(max_digits=10, decimal_places=2, default=1.00, verbose_name="Шаг ставки (₽)")
     target_position_min = models.PositiveIntegerField(default=1, verbose_name="Целевая позиция (от)")
     target_position_max = models.PositiveIntegerField(default=10, verbose_name="Целевая позиция (до)")
-    
+
+    # Новые поля для отображения в интерфейсе
+    current_position = models.PositiveIntegerField(
+        null=True, 
+        blank=True, 
+        verbose_name="Текущая позиция в выдаче"
+    )
+    current_price = models.DecimalField(
+        max_digits=10, 
+        decimal_places=2, 
+        null=True, 
+        blank=True, 
+        verbose_name="Текущая ставка"
+    )
+
     # Мы будем использовать JSONField, а для SQLite Django сам создаст эмуляцию через TextField.
     # Нам не нужно делать if/else.
     schedule = models.TextField(default="[]", blank=True, verbose_name="Расписание (JSON-строка)")
@@ -66,7 +82,7 @@ class TaskLog(models.Model):
         verbose_name_plural = "Записи логов"
         ordering = ['-timestamp']
 
-# --- СИГНАЛ (ИСПРАВЛЕННЫЙ) ---
+# --- СИГНАЛ ДЛЯ СОЗДАНИЯ ПРОФИЛЯ ---
 @receiver(post_save, sender=User)
 def create_user_profile(sender, instance, created, **kwargs):
     """
@@ -74,3 +90,9 @@ def create_user_profile(sender, instance, created, **kwargs):
     """
     if created:
         UserProfile.objects.create(user=instance)
+
+@receiver(post_save, sender=BiddingTask)
+def auto_start_bidding(sender, instance, created, **kwargs):
+    if instance.is_active:
+        delay = random.randint(180, 480)  # 3–8 минут
+        current_app.send_task('main_app.tasks.run_bidding_for_task', args=[instance.id], countdown=delay)

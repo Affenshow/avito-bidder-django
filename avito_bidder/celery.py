@@ -3,7 +3,7 @@ import os
 from celery import Celery
 
 # Устанавливаем переменную окружения, чтобы Celery знал, где искать настройки Django.
-os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'avito_bidder.settings')
+os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'avito_bidder.settings.local')
 
 app = Celery('avito_bidder')
 
