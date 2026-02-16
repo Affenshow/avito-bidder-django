@@ -230,16 +230,22 @@ def run_bidding_for_task(self, task_id: int):
         if current_price is None:
             TaskLog.objects.create(task=task, message="Не удалось получить цену.", level='ERROR')
         else:
-            # --- 4. ПРОВЕРКА ДНЕВНОГО ЛИМИТА ТРАТ (новое) ---
-            if task.daily_budget > 0:
-                # Косвенная проверка: если позиция в норме → траты идут → лимит исчерпан
-                if position <= task.target_position_max:
-                    TaskLog.objects.create(task=task, message=f"Дневный лимит {task.daily_budget} ₽ достигнут (по позиции {position}) — ставка не повышается", level='WARNING')
-                    # Не повышаем ставку в этом цикле (можно добавить понижение до min_price, если хочешь жёстко)
-                    # new_price = float(task.min_price)
-                    # set_ad_price(task.ad_id, new_price, access_token)
-                else:
-                    TaskLog.objects.create(task=task, message=f"Позиция {position} вне цели — лимит не учитывается", level='INFO')
+                #4 --- Проверка дневного лимита трат ---
+         if task.daily_budget is not None and task.daily_budget > 0:
+        # Косвенная проверка: если позиция в норме → траты идут → лимит исчерпан
+          if position <= task.target_position_max:
+            TaskLog.objects.create(
+                task=task,
+                message=f"Дневный лимит {task.daily_budget} ₽ достигнут (по позиции {position}) — ставка не повышается",
+                level='WARNING'
+            )
+            # Не повышаем ставку в этом цикле
+         else:
+            TaskLog.objects.create(
+                task=task,
+                message=f"Позиция {position} вне цели — лимит не учитывается",
+                level='INFO'
+            )
 
             # Умная логика ставки — всегда меняем в сторону цели (экономия при норме или лучше)
             if position > task.target_position_max:
