@@ -1,94 +1,287 @@
+
+
 {% extends 'base.html' %}
+{% load form_filters %}
 {% load static %}
 
-{% block title %}{% if object %}Редактировать задание{% else %}Добавить задание{% endif %} - {{ block.super }}{% endblock %}
-
-{% block page_title %}{% if object %}Редактировать задание #{{ object.id }}{% else %}Новое задание для биддера{% endif %}{% endblock %}
+{% block title %}
+    {% if object %}Редактировать задание{% else %}Добавить задание{% endif %} - {{ block.super }}
+{% endblock %}
+{% block page_title %}
+    {% if object %}Редактировать задание #{{ object.id }}{% else %}Новое задание для биддера{% endif %}
+{% endblock %}
 
 {% block content %}
+<div class="form-wrapper" style="background:#fff;max-width:600px;margin:2.3em auto 2em;border-radius:18px;padding:2.7em 2.3em 2.3em 2.3em;box-shadow:0 9px 42px #2240800f;">
 <form method="post" class="form-styled">
     {% csrf_token %}
 
-    <!-- Общие ошибки формы -->
     {% if form.non_field_errors %}
-        <div class="form-errors">{{ form.non_field_errors }}</div>
+        <div class="form-errors">
+            {% for error in form.non_field_errors %}
+                <span>{{ error }}</span>
+            {% endfor %}
+        </div>
     {% endif %}
+
+    <!-- Современный селект (авито-аккаунт) -->
+    <div class="form-group">
+        <label for="{{ form.avito_account.id_for_label }}" style="font-weight:600;font-size:1.09em;color:#21477c;display:flex;align-items:center;gap:.6em;">
+            <span style="color:#2ca7d2;font-size:1.25em;"><i class="fab fa-avianex"></i></span>
+            Аккаунт Avito
+        </label>
+        <div style="position:relative;">
+            <span style="position:absolute;top:55%;left:11px;transform:translateY(-50%);color:#1ebe67;font-size:1.13em;"><i class="fas fa-user"></i></span>
+            {{ form.avito_account|add_class:"modern-select" }}
+        </div>
+        {% if form.avito_account.errors %}
+            <div class="field-errors" style="margin-top:.23em;">{{ form.avito_account.errors|join:", " }}</div>
+        {% endif %}
+    </div>
 
     <!-- ID Объявления -->
     <div class="form-group">
         <label for="{{ form.ad_id.id_for_label }}">{{ form.ad_id.label }}</label>
-        {{ form.ad_id }}
+        {{ form.ad_id|add_class:"nice-input" }}
         {% if form.ad_id.errors %}<div class="field-errors">{{ form.ad_id.errors }}</div>{% endif %}
     </div>
 
     <!-- URL для поиска -->
     <div class="form-group">
         <label for="{{ form.search_url.id_for_label }}">{{ form.search_url.label }}</label>
-        {{ form.search_url }}
+        {{ form.search_url|add_class:"nice-input" }}
         {% if form.search_url.errors %}<div class="field-errors">{{ form.search_url.errors }}</div>{% endif %}
     </div>
 
     <!-- Ценовой диапазон -->
-    <div class="form-row">
-        <div class="form-group">
+    <div class="form-row" style="display:flex;gap:1.4em;">
+        <div class="form-group" style="flex:1;">
             <label for="{{ form.min_price.id_for_label }}">{{ form.min_price.label }}</label>
-            {{ form.min_price }}
+            {{ form.min_price|add_class:"nice-input" }}
             {% if form.min_price.errors %}<div class="field-errors">{{ form.min_price.errors }}</div>{% endif %}
         </div>
-        <div class="form-group">
+        <div class="form-group" style="flex:1;">
             <label for="{{ form.max_price.id_for_label }}">{{ form.max_price.label }}</label>
-            {{ form.max_price }}
+            {{ form.max_price|add_class:"nice-input" }}
             {% if form.max_price.errors %}<div class="field-errors">{{ form.max_price.errors }}</div>{% endif %}
         </div>
     </div>
 
-    <!-- БЛОК ДЛЯ ПОЛЗУНКА ПОЗИЦИЙ -->
+    <!-- Целевой диапазон позиций -->
     <div class="form-group">
         <label>Целевой диапазон позиций</label>
-        <!-- Сюда JavaScript "нарисует" ползунок -->
         <div id="position-slider" class="position-slider"></div>
-        <!-- Скрытые поля, которые будут отправляться на бэкенд -->
-        <div style="display: none;">
+        <div style="display:none;">
             {{ form.target_position_min }}
             {{ form.target_position_max }}
         </div>
-        <!-- Отображаем ошибки для этих полей, если они есть -->
         {% if form.target_position_min.errors %}<div class="field-errors">{{ form.target_position_min.errors }}</div>{% endif %}
         {% if form.target_position_max.errors %}<div class="field-errors">{{ form.target_position_max.errors }}</div>{% endif %}
     </div>
 
     <!-- Шаг ставки -->
-     <div class="form-group">
+    <div class="form-group">
         <label for="{{ form.bid_step.id_for_label }}">{{ form.bid_step.label }}</label>
-        {{ form.bid_step }}
+        {{ form.bid_step|add_class:"nice-input" }}
         {% if form.bid_step.errors %}<div class="field-errors">{{ form.bid_step.errors }}</div>{% endif %}
     </div>
 
-    <!-- Интерфейс для расписания -->
+    <!-- Современный блок расписания -->
     <div class="form-group">
-        <label>Расписание работы биддера</label>
+        <label style="font-weight:600;color:#21477c;display:flex;align-items:center;gap:.7em;">
+            <span style="color:#38a3a5;"><i class="fas fa-clock"></i></span>
+            Расписание работы биддера
+        </label>
         <div id="schedule-container"></div>
-        <button type="button" id="add-schedule-interval" class="btn-add-interval">
+        <button type="button" id="add-schedule-interval" class="btn-add-interval"
+            style="margin-top:.8em;display:inline-flex;align-items:center;gap:.5em;padding:.6em 1.4em;background:#eaf6fd;border-radius:7px;border:1px solid #c8e7f6;color:#24a384;font-weight:600;transition:background .12s;">
             <i class="fas fa-plus"></i> Добавить интервал
         </button>
-        <div style="display: none;">
+        <div style="display:none;">
             <textarea name="schedule" id="id_schedule_data">{% if form.instance.schedule %}{{ form.instance.schedule }}{% else %}[]{% endif %}</textarea>
         </div>
         {% if form.schedule.errors %}<div class="field-errors">{{ form.schedule.errors }}</div>{% endif %}
     </div>
-
-    <!-- Переключатель "Активен" -->
-    <div class="form-group form-group-toggle">
-        {{ form.is_active }}
-        <label for="{{ form.is_active.id_for_label }}">{{ form.is_active.label }}</label>
-        {% if form.is_active.errors %}<div class="field-errors">{{ form.is_active.errors }}</div>{% endif %}
+    <div id="schedule-template" style="display:none;">
+        <div class="schedule-interval-row" style="background:#f8fafc;border-radius:10px;padding:11px 13px 8px 13px;display:flex;flex-direction:column;gap:.5em;margin-bottom:.6em;box-shadow:0 1.5px 12px #54c3d105;">
+            <div class="time-inputs" style="display:flex;gap:1em;align-items:center;margin-bottom:.3em;">
+                <input type="time" class="time-input start-time nice-input" value="09:00">
+                <span style="color:#bbb;font-weight:800;">–</span>
+                <input type="time" class="time-input end-time nice-input" value="23:00">
+            </div>
+            <div class="day-selectors modern-days" style="margin-top:.2em;margin-bottom:.3em;">
+                <label><input type="checkbox" value="1"> Пн</label>
+                <label><input type="checkbox" value="2"> Вт</label>
+                <label><input type="checkbox" value="3"> Ср</label>
+                <label><input type="checkbox" value="4"> Чт</label>
+                <label><input type="checkbox" value="5"> Пт</label>
+                <label><input type="checkbox" value="6" class="weekend"> Сб</label>
+                <label><input type="checkbox" value="7" class="weekend"> Вс</label>
+            </div>
+            <button type="button" class="btn-remove-interval" style="margin-left:auto;background:none;border:none;color:#b36665;font-size:1.50em;line-height:1;cursor:pointer;transition:.1s color;">
+                &times;
+            </button>
+        </div>
     </div>
 
-    <!-- Кнопка сохранения -->
-    <div class="form-actions">
-        <button type="submit" class="btn btn-primary">
+    <!-- Красивый тумблер “выход из 50-го места” -->
+    <div class="form-group form-group-toggle" style="margin-top:1.18em;display:flex;align-items:center;gap:1.1em;">
+        <label class="switch">
+            {{ form.freeze_price_if_not_found }}
+            <span class="slider round"></span>
+        </label>
+        <span style="font-weight:500;">{{ form.freeze_price_if_not_found.label }}
+            <span class="help-tooltip" title="{{ form.freeze_price_if_not_found.help_text }}"
+                  style="padding:.5px 7px .5px 7px;background:#e9f6ff;color:#1dc3a6;border-radius:5px;margin-left:.38em;cursor:help;">?</span>
+        </span>
+        {% if form.freeze_price_if_not_found.errors %}
+            <div class="field-errors" style="margin-left:1.1em;">{{ form.freeze_price_if_not_found.errors }}</div>
+        {% endif %}
+    </div>
+
+    <!-- Дневной лимит трат -->
+    <div class="form-group">
+        <label for="{{ form.daily_budget.id_for_label }}">Дневной лимит трат (₽)</label>
+        {{ form.daily_budget|add_class:"nice-input" }}
+        <small class="text-muted d-block" style="color:#7890aa;font-size:.99em;">
+            0 = без лимита. Если за день потрачено ≥ суммы — биддер не повышает ставку.
+        </small>
+        {% if form.daily_budget.errors %}
+            <div class="field-errors">{{ form.daily_budget.errors }}</div>
+        {% endif %}
+    </div>
+
+    <!-- Современный тумблер “Активен” -->
+    <div class="form-group form-group-toggle" style="display:flex;align-items:center;gap:1.1em;">
+        <label class="switch">
+            {{ form.is_active }}
+            <span class="slider round"></span>
+        </label>
+        <span style="font-weight:500;">{{ form.is_active.label }}</span>
+        {% if form.is_active.errors %}
+            <div class="field-errors" style="margin-left:1.1em;">{{ form.is_active.errors }}</div>
+        {% endif %}
+    </div>
+
+    <div class="form-actions" style="margin-top:2em;">
+        <button type="submit" class="btn btn-primary" style="width:100%;font-size:1.13em;">
             {% if object %}Сохранить изменения{% else %}Добавить задание{% endif %}
         </button>
     </div>
 </form>
+</div>
+{% endblock %}
+
+
+{% block extra_js %}
+{{ block.super }}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const container = document.getElementById('schedule-container');
+    const addButton = document.getElementById('add-schedule-interval');
+    const scheduleTemplate = document.getElementById('schedule-template');
+    const scheduleTextarea = document.getElementById('id_schedule_data');
+    function updateScheduleJson() {
+        const intervals = [];
+        container.querySelectorAll('.schedule-interval-row').forEach(row => {
+            const days = [];
+            row.querySelectorAll('.day-selectors input:checked').forEach(checkbox => {
+                days.push(parseInt(checkbox.value, 10));
+            });
+            if (days.length > 0) {
+                intervals.push({
+                    days: days,
+                    startTime: row.querySelector('.start-time').value,
+                    endTime: row.querySelector('.end-time').value
+                });
+            }
+        });
+        scheduleTextarea.value = JSON.stringify(intervals, null, 2);
+    }
+    function createIntervalRow(data = null) {
+        const newRow = scheduleTemplate.firstElementChild.cloneNode(true);
+        if (data) {
+            newRow.querySelector('.start-time').value = data.startTime || data.start || '09:00';
+            newRow.querySelector('.end-time').value = data.endTime || data.end || '23:00';
+            if (data.days && data.days.length) {
+                data.days.forEach(day => {
+                    const checkbox = newRow.querySelector(`.day-selectors input[value="${day}"]`);
+                    if (checkbox) checkbox.checked = true;
+                });
+            }
+        }
+        newRow.addEventListener('change', updateScheduleJson);
+        newRow.querySelector('.btn-remove-interval').addEventListener('click', () => {
+            newRow.remove();
+            updateScheduleJson();
+        });
+        container.appendChild(newRow);
+    }
+    function loadInitialSchedule() {
+        try {
+            const initialData = JSON.parse(scheduleTextarea.value);
+            if (Array.isArray(initialData)) {
+                initialData.forEach(data => createIntervalRow(data));
+            }
+        } catch (e) {/* ignore */}
+    }
+    addButton.addEventListener('click', () => createIntervalRow());
+    loadInitialSchedule();
+});
+</script>
+<!-- Добавьте фильтр add_class в templatetags для красивых инпутов, если его нет -->
+{% endblock %}
+
+{% block extra_head %}
+<style>
+/* СЕЛЕКТ и ИНПУТЫ */
+.nice-input, .modern-select, #id_avito_account {
+    width: 100%;
+    padding: .65em 1em .67em 2.1em;
+    border: 1.1px solid #aee7ec;
+    border-radius: 8.7px;
+    background: #f8fafb;
+    font-size: 1.05em;
+    color: #223869;
+    outline: none;
+    transition: border .15s;
+}
+.nice-input:focus, .modern-select:focus, #id_avito_account:focus {
+    border-color: #38a3a5;
+}
+/* ТУМБЛЕРЫ */
+.switch {
+  position: relative;
+  display: inline-block;
+  width: 44px;
+  height: 24px;
+}
+.switch input { opacity: 0; width: 0; height: 0; }
+.slider {
+  position: absolute;cursor:pointer;top:0;left:0;right:0;bottom:0;
+  background-color: #cbe2e9;transition:.21s;}
+.slider:before {
+  position:absolute;content:"";height:18px;width:18px;left:3px;bottom:3px;
+  background:#fff;transition:.21s;box-shadow:0 2px 6px #2091871b;
+  border-radius:50%;
+}
+input:checked + .slider { background: linear-gradient(45deg,#38a3a5 45%,#1ebe67 95%);}
+input:checked + .slider:before { transform:translateX(19.3px);}
+.slider.round { border-radius: 25px;}
+/* ДНИ НЕДЕЛИ */
+.modern-days label {display:inline-block;margin:.12em 5px;cursor:pointer;font-size:1em;transition:.12s;}
+.modern-days input[type=checkbox] {
+    accent-color: #38a3a5;
+    width: 1.02em;height:1.02em;margin-right:3.7px;cursor:pointer;
+}
+.btn-primary { background: linear-gradient(87deg,#38a3a5 55%, #1ebe67 99%);
+    color: #fff;font-weight:600;
+    border:none;border-radius: 10px;
+    padding:1.03em 0;font-size:1.1em;
+    box-shadow:0 3px 12px -2px #38a3a544;cursor:pointer;transition:background .18s;
+}
+.btn-primary:hover { background: linear-gradient(87deg,#1ebe67 10%, #38a3a5 90%);}
+.form-actions {margin-top:2em;}
+.field-errors,.form-errors {margin-top:.1em;margin-bottom:.3em;color:#e06363;font-size:.98em;}
+</style>
 {% endblock %}

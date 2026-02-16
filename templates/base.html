@@ -4,59 +4,146 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-
-    <!-- Подключаем иконки (Font Awesome) -->
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
-    
-    <!-- Подключаем наши стили -->
-    <link rel="stylesheet" href="{% static 'css/style.css' %}">
-    <!-- Подключаем стили для noUiSlider -->
-    <link href="https://cdnjs.cloudflare.com/ajax/libs/noUiSlider/15.7.1/nouislider.min.css" rel="stylesheet">
-    
     <title>{% block title %}Avito Bidder{% endblock %}</title>
+    <link rel="stylesheet" href="{% static 'css/style.css' %}">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/noUiSlider/15.7.1/nouislider.min.css" rel="stylesheet">
+    {% block extra_head %}{% endblock %}
+    <style>
+        html,body {margin:0; padding:0;}
+        body { background: #f8fafb; color: #334052; font-family:'Inter','Segoe UI',Tahoma,sans-serif; min-height:100vh;}
+        .page-wrapper { display:flex; min-height:100vh; }
+        .sidebar {
+            background: linear-gradient(135deg, #22577b 80%, #38a3a5 130%);
+            color: #fff; min-width:220px; width:220px;
+            display:flex; flex-direction:column; justify-content:space-between;
+            box-shadow: 3px 0 24px #15313912; height: 100vh; position: fixed; left:0; top:0; z-index:30;
+        }
+        .sidebar-header { text-align:center; padding:1.5em 0 0.9em 0; }
+        .sidebar-header h2 { font-weight: 700; font-size: 1.45em; margin: 0; letter-spacing: 0.07em; }
+        .sidebar-nav ul { padding: 0; margin: 0; list-style: none; }
+        .sidebar-nav li { margin-bottom: .5em;}
+        .sidebar-nav a {
+            display: flex; align-items:center;
+            padding: .74em 1.3em .74em 1.5em;
+            color: #f2f2fc; text-decoration:none;
+            font-weight:500; font-size:1.09em; border-radius:8px; 
+            transition: background .16s,color .16s;
+        }
+        .sidebar-nav .active>a,
+        .sidebar-nav a:hover { background: #38a3a530; color: #fff;}
+        .main-content { margin-left:220px; min-height:100vh; width:100%; padding:2.7em 2.5em 2em;}
+        .content-header h1 { font-size:2em; font-weight:600; margin:0 0 1.29em 0; color: #21477c; }
+        .header-actions { float:right; }
+        .sidebar-footer { 
+            padding: 1.5em 1em 1em 1em; 
+            box-shadow: 0 -1px 12px #1f27301a;
+        }
+        .sidebar-footer .sidebar-userbox {
+            display: flex; align-items: center; gap: 11px; margin-bottom: .3em; 
+            justify-content: center; flex-direction: row;
+        }
+        .sidebar-footer .usericon {
+            font-size:2em; color:#29b67c;
+        }
+        .sidebar-footer .username {
+            font-weight:600;font-size:1em;color:#fff;
+        }
+        .logout-link, .logout-btn {
+            display: flex; align-items: center; gap: 7px; 
+            background: rgba(255,255,255,0.11); border: none;
+            padding: 9px 19px 9px 15px; border-radius: 7px;
+            font-weight: 600; color: #f7f7fb; margin-top: 6px;
+            transition: background .17s,box-shadow .17s, color .17s;
+            box-shadow: 0 2px 12px -4px #0001; cursor: pointer;
+            font-size: 1em;
+        }
+        .logout-link:hover, .logout-btn:hover {
+            background:#38a3a5c2;color:#fff;
+        }
+        .mobile-nav-toggle {
+            display: none; position:fixed; left:17px; top:22px;
+            background: #fff; color:#21477c; border-radius:50%; border:none; z-index:160;
+            width:42px; height:42px; box-shadow:0 2px 14px #18377116;
+            font-size:1.26em; align-items:center; justify-content:center; cursor:pointer;}
+        @media (max-width:900px) {
+            .sidebar { left:-250px; transition:.22s left;}
+            .sidebar[open], .sidebar[data-open="true"] { left:0;}
+            .main-content { margin:0; padding:1.1em;}
+            .mobile-nav-toggle { display:flex; }
+            .sidebar-overlay[data-visible="true"] {display:block;}
+        }
+        .sidebar-overlay {
+            position:fixed; z-index:29;top:0;left:0; width:100vw;height:100vh;
+            background:rgba(27,44,88,.07);display:none;
+        }
+    </style>
 </head>
 <body>
-
-    <!-- Кнопка-бургер (видна только на мобильных) -->
-    <button class="mobile-nav-toggle" aria-controls="sidebar" aria-expanded="false">
+    <!-- Кнопка-бургер для мобильных -->
+    <button class="mobile-nav-toggle" aria-controls="sidebar" aria-expanded="false" onclick="toggleSidebar()">
         <i class="fas fa-bars"></i>
         <span class="sr-only">Меню</span>
     </button>
-    
-    <!-- Главный контейнер страницы -->
     <div class="page-wrapper">
-
-        <!-- Боковое меню (Сайдбар) -->
         <aside class="sidebar" id="sidebar">
-            <div class="sidebar-header">
-                <h2>Bidder</h2>
-            </div>
-            <nav class="sidebar-nav">
-                <ul>
-                    <li {% if request.resolver_match.url_name == 'task-list' %}class="active"{% endif %}>
-                        <a href="{% url 'task-list' %}"><i class="fas fa-chart-pie"></i> Обзор</a>
-                    </li>
-                    <li {% if request.resolver_match.url_name == 'ads-list' %}class="active"{% endif %}>
-                        <a href="{% url 'ads-list' %}"><i class="fas fa-bullhorn"></i> Объявления</a>
-                    </li>
-                    <li {% if request.resolver_match.url_name == 'settings' %}class="active"{% endif %}>
-                        <a href="{% url 'settings' %}"><i class="fas fa-cog"></i> Настройки</a>
-                    </li>
-                </ul>
-            </nav>
-            <div class="sidebar-footer">
-                <div class="user-profile">
-                    <i class="fas fa-user-circle"></i>
-                    <span>{{ user.username }}</span>
+            <div>
+                <div class="sidebar-header">
+                    <h2>Avito Bidder</h2>
                 </div>
-                <a href="{% url 'logout' %}" class="logout-link"><i class="fas fa-sign-out-alt"></i> Выход</a>
+                <nav class="sidebar-nav">
+                    <ul>
+                        <li {% if request.resolver_match.url_name == 'task-list' %}class="active"{% endif %}>
+                            <a href="{% url 'task-list' %}"><i class="fas fa-chart-pie" style="margin-right:8px"></i> Обзор</a>
+                        </li>
+                        <li {% if 'avito-account' in request.resolver_match.url_name %}class="active"{% endif %}>
+                            <a href="{% url 'avito-account-list' %}"><i class="fas fa-users" style="margin-right:8px"></i> Аккаунты</a>
+                        </li>
+                        <li {% if request.resolver_match.url_name == 'settings' %}class="active"{% endif %}>
+                            <!-- <a href="{% url 'settings' %}"><i class="fas fa-cog" style="margin-right:8px"></i> Настройки</a>-->
+                        </li>
+                    </ul>
+                </nav>
             </div>
-        </aside>
+            <div class="sidebar-footer" style="padding-top:1.7em;padding-bottom:1.1em;box-shadow:0 -1px 12px #1f27301a;">
+    <div style="display: flex; flex-direction: column; align-items: center;">
+        <span style="font-size:2em;color:#29b67c;"><i class="fas fa-user-circle"></i></span>
+        <span style="font-weight:500;font-size:1.08em;color:#fff;margin-top:0.28em;">{{ user.username }}</span>
+        <form action="{% url 'logout' %}" method="post" style="margin:0; width:100%;">
+            {% csrf_token %}
+            <button type="submit" class="logout-link"
+                style="
+                    margin-top:1.18em;
+                    display: flex; align-items: center; justify-content: center;
+                    background: rgba(255,255,255,0.13);
+                    border: none;
+                    width: 100%;
+                    min-width:120px;
+                    max-width:155px;
+                    margin-left: auto;
+                    margin-right: auto;
+                    padding: 9px 0;
+                    border-radius: 7px;
+                    font-weight: 600;
+                    color: #f7f7fb;
+                    transition:background .17s,box-shadow .17s,color .17s;
+                    box-shadow: 0 2px 12px -4px #0001;
+                    cursor: pointer;
+                    font-size: 1em;
+                "
+                onmouseover="this.style.background='#38a3a5c2';this.style.color='#fff';"
+                onmouseout="this.style.background='rgba(255,255,255,0.13)';this.style.color='#f7f7fb';"
+            >
+                <i class="fas fa-sign-out-alt" style="margin-right:.5em"></i> Выйти
+            </button>
+        </form>
+    </div>
+</div>
 
-        <!-- Основной контент (правая часть) -->
+        </aside>
         <main class="main-content">
             <header class="content-header">
-                <h1>{% block page_title %}{% endblock %}</h1>
+                <h1>{% block page_header_title %}{% block page_title %}{% endblock %}{% endblock %}</h1>
                 <div class="header-actions">
                     {% block header_actions %}{% endblock %}
                 </div>
@@ -65,16 +152,25 @@
                 {% block content %}{% endblock %}
             </div>
         </main>
-
     </div>
-
-    <!-- Оверлей для затемнения контента (виден только на мобильных при открытом меню) -->
-    <div class="sidebar-overlay" data-visible="false"></div>
-
-    <!-- Подключаем наш JavaScript-файл -->
-     <!-- Подключаем скрипт noUiSlider ПЕРЕД вашим main.js -->
-    <script src="{% static 'js/main.js' %}"></script>
+    <div class="sidebar-overlay" data-visible="false" onclick="toggleSidebar()" style="display:none;"></div>
+    <!-- JS и вспомогательные скрипты -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/noUiSlider/15.7.1/nouislider.min.js"></script>
-
+    <script src="{% static 'js/main.js' %}"></script>
+    <script>
+        // Мобильный сайдбар
+        function toggleSidebar() {
+            var sb = document.getElementById('sidebar');
+            var ov = document.querySelector('.sidebar-overlay');
+            if (sb.hasAttribute('open') || sb.getAttribute('data-open')=='true') {
+                sb.removeAttribute('open'); sb.setAttribute('data-open','false');
+                if(ov) {ov.style.display='none'; ov.setAttribute('data-visible','false');}
+            } else {
+                sb.setAttribute('open','open'); sb.setAttribute('data-open','true');
+                if(ov) {ov.style.display='block'; ov.setAttribute('data-visible','true');}
+            }
+        }
+    </script>
+    {% block extra_js %}{% endblock %}
 </body>
 </html>

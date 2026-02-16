@@ -1,22 +1,64 @@
-<!-- core/templates/core/task_confirm_delete.html -->
 <!DOCTYPE html>
 <html>
 <head>
     <title>Подтверждение удаления</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1">
     <style>
-        body { font-family: sans-serif; display: flex; justify-content: center; align-items: center; min-height: 100vh; background-color: #f8f9fa;}
-        form { padding: 2em; border: 1px solid #ccc; border-radius: 5px; background: #fff; text-align: center; }
-        button { padding: 10px 15px; border: none; background-color: #dc3545; color: white; border-radius: 5px; cursor: pointer; }
-        a { text-decoration: none; color: #007bff; margin-left: 1em; }
+        body {
+            font-family: 'Segoe UI', Arial, sans-serif;
+            display: flex; justify-content: center; align-items: center;
+            min-height: 100vh; background-color: #f7fdff;
+        }
+        .delete-dialog {
+            max-width: 382px; width: 96vw; margin: 1em;
+            padding: 2.2em 2em 2em 2em;
+            background: #fff;
+            border-radius: 16px;
+            box-shadow:0 12px 40px #38a3a51a,0 2px 9px #b5dfd717;
+            text-align: center;
+            border: none;
+        }
+        .delete-dialog h2 {
+            color: #e06363; margin-top:0; font-size:1.27em;
+            font-weight: 800; letter-spacing:-.02em;
+        }
+        .delete-dialog p {
+            color: #336;
+            font-size: 1.09em;
+            margin-bottom: 2.1em;
+        }
+        .delete-dialog .danger-btn {
+            padding: .82em 0;
+            width: 100%;
+            background: linear-gradient(90deg,#f06a77 36%,#cc1d40 90%);
+            color: #fff; border: none; border-radius: 8px;
+            font-size: 1.1em; font-weight: 700; cursor: pointer;
+            box-shadow:0 4px 14px -2px #f06a7733;
+            transition: background .14s;
+        }
+        .delete-dialog .danger-btn:hover {
+            background:linear-gradient(90deg,#cc1d40 25%,#f06a77 80%);
+        }
+        .delete-dialog .cancel-link {
+            display:block; margin:1.5em auto 0 auto; color:#20a3a5;
+            text-decoration:none; font-weight:600; font-size:1em;
+            border-radius:8px; transition:background .11s;
+            width:90%; padding:.8em 0;
+        }
+        .delete-dialog .cancel-link:hover {background:#f2fcfa;}
+        @media(max-width:650px){
+            .delete-dialog{padding:1.1em .41em 1.02em .41em;}
+            .delete-dialog p{font-size:.99em;}
+        }
     </style>
 </head>
 <body>
-    <form method="post">
+    <form method="post" class="delete-dialog">
         {% csrf_token %}
-        <h2>Вы уверены, что хотите удалить задание для объявления "{{ object.ad_id }}"?</h2>
-        <p>Это действие необратимо.</p>
-        <button type="submit">Да, удалить</button>
-        <a href="{% url 'task-list' %}">Отмена</a>
+        <h2>Удалить задание для объявления №{{ object.ad_id }}?</h2>
+        <p>Это действие необратимо.<br>После удаления восстановить задание будет невозможно.</p>
+        <button type="submit" class="danger-btn">Да, удалить</button>
+        <a href="{% url 'task-list' %}" class="cancel-link">Отмена</a>
     </form>
 </body>
 </html>

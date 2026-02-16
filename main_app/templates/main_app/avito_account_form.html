@@ -1,0 +1,59 @@
+{% extends "base.html" %}
+{% load form_filters %}
+{% block title %}{{ form.instance.pk|yesno:"Редактировать,Добавить" }} аккаунт Avito{% endblock %}
+
+{% block content %}
+<div class="form-wrapper" style="max-width:480px;padding:2.2em 2em 2em 2em;margin:2.4em auto;background:#fff;border-radius:18px;box-shadow:0 11px 48px #1ebe671a,0 2px 8px #2240770f;">
+  <h2 style="margin-top:0;font-weight:700;font-size:1.38em;color:#22577b;text-align:center;">
+    {{ form.instance.pk|yesno:"Редактировать,Добавить" }} аккаунт Avito
+  </h2>
+  <form method="post" style="display:flex;flex-direction:column;gap:1.5em;">
+      {% csrf_token %}
+      {% for field in form.visible_fields %}
+        <div style="display:flex;flex-direction:column;">
+          <label for="{{ field.id_for_label }}" style="font-weight:600;margin-bottom:0.21em;color:#23466a;font-size:1.07em;">
+              {{ field.label }}
+          </label>
+          {{ field|add_class:"nice-input" }}
+          {% if field.help_text %}
+              <small style="color:#7890aa;">{{ field.help_text }}</small>
+          {% endif %}
+          {% if field.errors %}
+              <div style="color:#e06363;font-size:.97em;margin-top:.15em;">
+                  {% for error in field.errors %}<span>{{ error }}</span>{% endfor %}
+              </div>
+          {% endif %}
+        </div>
+      {% endfor %}
+      <button type="submit"
+        style="background:linear-gradient(90deg,#38a3a5,#1ebe67);color:#fff;font-weight:700;padding:.92em 0;border-radius:10px;border:0;box-shadow:0 3px 14px -2px #19bb66a8;font-size:1.11em;letter-spacing:.01em;transition:background 0.18s;"
+      >
+        Сохранить
+      </button>
+  </form>
+  <div style="margin-top:1.4em;text-align:center;">
+    <a href="{% url 'avito-account-list' %}" style="color:#21477c;text-decoration:none;display:inline-block;font-weight:500;">
+      <span style="font-size:1.13em;vertical-align:middle;">←</span>
+      <span style="vertical-align:middle;">Назад к аккаунтам</span>
+    </a>
+  </div>
+</div>
+<style>
+.nice-input {
+    width: 100%;
+    padding: .67em 1.1em .7em 1.1em;
+    border: 1.1px solid #aee7ec;
+    border-radius: 9px;
+    background: #f8fafb;
+    font-size: 1.05em;
+    color: #223869;
+    outline: none;
+    transition: border .15s, box-shadow .15s;
+}
+.nice-input:focus { border-color: #38a3a5; box-shadow:0 0 0 2px #29b67c22;}
+@media (max-width: 600px) {
+    .form-wrapper {padding:1em .4em 1.2em .4em;}
+    .nice-input{font-size:.99em;}
+}
+</style>
+{% endblock %}

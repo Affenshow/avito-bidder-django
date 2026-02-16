@@ -1,35 +1,126 @@
-<!-- templates/registration/login.html -->
 {% load static %}
 <!DOCTYPE html>
 <html lang="ru">
 <head>
     <meta charset="UTF-8">
-    <title>Вход</title>
+    <title>Вход | Avito Bidder</title>
     <link rel="stylesheet" href="{% static 'css/style.css' %}">
+    <!-- Google Fonts для современного вида -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600&display=swap" rel="stylesheet">
+    <style>
+        body.auth-page {
+            min-height: 100vh; margin: 0; 
+            background: linear-gradient(135deg,#e9f6ff 0%,#f8fafb 100%);
+            font-family: 'Inter','Segoe UI',Tahoma,sans-serif;
+            display:flex;align-items:center;justify-content:center;
+        }
+        .auth-container {
+            background: #fff;
+            border-radius: 18px;
+            box-shadow: 0 6px 42px #89b3d41a,0 2px 10px #2240770b;
+            max-width: 390px;
+            width: 95%;
+            margin:auto;
+            padding: 2.6em 2.2em 2.2em 2.2em;
+            display:flex;flex-direction:column;align-items:center;
+        }
+        .auth-title {
+            font-size: 2em;
+            color: #22577b;
+            margin-bottom: .2em;
+            font-weight: 700;
+            letter-spacing: .05em;
+        }
+        .auth-subtitle {
+            color: #29477b;
+            font-size: 1.12em;
+            margin-bottom: 1.25em;
+            font-weight: 500;
+        }
+        .form-styled { width:100%; }
+        .form-group {
+            margin-bottom: 1.1em;
+            display:flex;flex-direction:column;
+        }
+        .form-group label {
+            font-size: 1em;
+            color: #284674;
+            font-weight: 600;
+            margin-bottom: 0.4em;
+        }
+        .form-group input {
+            padding: .72em 1em;
+            font-size:1em;
+            border: 1px solid #ccd7eb;
+            border-radius: 8px;
+            transition: border .15s;
+            outline: none;
+        }
+        .form-group input:focus {
+            border-color: #38a3a5;
+        }
+        .error-list span {
+            color: #e06363;
+            font-size: .99em;
+            margin-top:.2em;
+            display:block;
+        }
+        .form-actions {
+            margin-top: 0.7em;
+            text-align:center;
+        }
+        .btn-primary {
+            background: linear-gradient(90deg,#38a3a5 44%, #1ebe67 90%);
+            color: #fff;
+            font-weight:600;
+            border: none;
+            border-radius: 9px;
+            padding: .92em 0;
+            font-size:1.08em;
+            box-shadow: 0 3px 12px -2px #38a3a544;
+            cursor:pointer;
+            transition: background .18s;
+        }
+        .btn-primary:hover {
+            background: linear-gradient(90deg,#1ebe67 15%, #38a3a5 90%);
+        }
+        .auth-footer-link {
+            margin-top: 1.7em;
+            color: #334052;
+            font-size: 1em;
+            text-align:center;
+        }
+        .auth-footer-link a {
+            color: #38a3a5;
+            text-decoration: none;
+            font-weight:600;
+            transition:color .13s;
+        }
+        .auth-footer-link a:hover { color: #1ebe67; }
+    </style>
 </head>
 <body class="auth-page">
     <div class="auth-container">
-        <h2 class="auth-title">Bidder</h2>
+        <h2 class="auth-title">Avito Bidder</h2>
         <p class="auth-subtitle">Войдите в свой аккаунт</p>
         <form method="post" class="form-styled">
             {% csrf_token %}
-
-    {% for field in form %}
-        <div class="form-group">
-            {{ field.label_tag }}
-            {{ field }}
-            {% if field.errors %}
-                <div class="error-list">
-                    {% for error in field.errors %}
-                        <span>{{ error }}</span>
-                    {% endfor %}
+            {% for field in form %}
+                <div class="form-group">
+                    {{ field.label_tag }}
+                    {{ field }}
+                    {% if field.errors %}
+                        <div class="error-list">
+                            {% for error in field.errors %}
+                                <span>{{ error }}</span>
+                            {% endfor %}
+                        </div>
+                    {% endif %}
                 </div>
-            {% endif %}
-        </div>
-    {% endfor %}
+            {% endfor %}
 
             <div class="form-actions">
-                <button type="submit" class="btn btn-primary" style="width: 100%;">Войти</button>
+                <button type="submit" class="btn btn-primary" style="width:100%;">Войти</button>
             </div>
         </form>
         <p class="auth-footer-link">

@@ -159,3 +159,54 @@ def rotate_proxy_ip():
     except Exception as e:
         logger.error(f"--- [PROXY] Ошибка при смене IP: {e}")
         return False
+    
+# +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+# +++ НОВАЯ ФУНКЦИЯ ДЛЯ ПОЛУЧЕНИЯ ВСЕХ ОБЪЯВЛЕНИЙ ПОЛЬЗОВАТЕЛЯ +++
+# +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+def get_user_ads(access_token: str) -> Union[list, None]:
+    """
+    Получает список активных объявлений пользователя через API Avito.
+    Возвращает список словарей вида [{'id': 123, 'title': '...'}, ...] или None в случае ошибки.
+    """
+    # Сначала получаем ID пользователя Avito, так как он нужен для запроса объявлений
+    user_id = get_avito_user_id(access_token)
+    if not user_id:
+        logger.error("[AVITO API] Не удалось получить user_id для запроса объявлений.")
+        return None
+
+    # URL для получения объявлений пользователя
+    url = f"https://api.avito.ru/core/v1/accounts/{user_id}/ads/"
+    
+    headers = {
+        'Authorization': f'Bearer {access_token}',
+        'Content-Type': 'application/json',
+    }
+
+    try:
+        logger.info(f"[AVITO API] Запрос списка объявлений для пользователя {user_id}...")
+        response = requests.get(url, headers=headers, timeout=20)
+        
+        response.raise_for_status()
+        
+        data = response.json()
+        
+        ads_from_api = data.get('resources', [])
+        
+        formatted_ads = []
+        for ad in ads_from_api:
+            # Отбираем только активные объявления
+            if ad.get('status') == 'active':
+                formatted_ads.append({
+                    'id': ad.get('id'),
+                    'title': ad.get('title', 'Без названия')
+                })
+        
+        logger.info(f"[AVITO API] Найдено {len(formatted_ads)} активных объявлений.")
+        return formatted_ads
+
+    except requests.exceptions.RequestException as e:
+        logger.error(f"[AVITO API] Ошибка при запросе списка объявлений: {e}")
+        return None
+    except Exception as e:
+        logger.error(f"[AVITO API] Непредвиденная ошибка при обработке объявлений: {e}")
+        return None

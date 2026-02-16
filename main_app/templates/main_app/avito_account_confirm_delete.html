@@ -1,0 +1,31 @@
+{% extends "base.html" %}
+{% block title %}Удалить аккаунт{% endblock %}
+{% block content %}
+<div class="delete-wrapper" style="max-width:410px;margin:3.2em auto 2.5em;padding:2.2em 2em 2em 2em;background:#fff;border-radius:17px;box-shadow:0 8px 32px #24bfc71c,0 2px 8px #2240770f;">
+    <h2 style="text-align:center;font-size:1.33em;margin-top:0;margin-bottom:.95em;color:#e06363;font-weight:800;">
+        Удалить аккаунт
+    </h2>
+    <p style="color:#23466a;font-size:1.12em;text-align:center;">
+        Вы уверены, что хотите удалить аккаунт<br>
+        <span style="color:#38a3a5;font-weight:600;">«{{ object.name }}»</span>?
+    </p>
+    <form method="post" style="margin-top:2em;display:flex;flex-direction:column;gap:1.18em;align-items:center;">
+        {% csrf_token %}
+        <button type="submit"
+            style="background:linear-gradient(90deg,#f06a77 32%,#cc1d40 90%);color:#fff;font-weight:700;padding:.82em 0;width:95%;border-radius:9px;border:0;font-size:1.1em;box-shadow:0 4px 14px -2px #f06a7733;letter-spacing:.01em;transition:background 0.15s;cursor:pointer;">
+            Подтвердить удаление
+        </button>
+        <a href="{% url 'avito-account-list' %}"
+           style="display:block;color:#21477c;font-weight:600;padding:.72em 0;text-align:center;border-radius:7px;text-decoration:none;transition:background .12s; width:95%;">
+            Отменить
+        </a>
+    </form>
+</div>
+<style>
+@media (max-width: 600px){
+  .delete-wrapper {padding:1em .3em 1.2em .3em;}
+}
+button[type="submit"]:hover {background:linear-gradient(90deg,#cc1d40 25%,#f06a77 80%)!important;}
+a[href]:hover {background:#e6f2fa;}
+</style>
+{% endblock %}
