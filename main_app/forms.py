@@ -32,15 +32,7 @@ class BiddingTaskForm(forms.ModelForm):
         widget=forms.Select(attrs={'class': 'form-control'})
     )
 
-# Новое поле: дневный лимит трат
-    daily_budget = forms.DecimalField(
-        max_digits=10,
-        decimal_places=2,
-        required=False,
-        label="Дневный лимит трат (₽)",
-        help_text="Если за день потрачено ≥ этой суммы — биддер не повышает ставку. 0 = без лимита",
-        widget=forms.NumberInput(attrs={'step': '1', 'placeholder': 'Например 1000'})
-    )
+
 
     class Meta:
         model = BiddingTask
@@ -88,3 +80,25 @@ class UserProfileForm(forms.ModelForm):
         # +++ ИЗМЕНЕНИЕ: Убираем отсюда avito_client_id и avito_client_secret +++
         # Теперь эта форма пустая, но мы ее оставим, вдруг понадобится для других полей
         fields = []
+
+daily_budget = forms.DecimalField(
+    max_digits=10,
+    decimal_places=2,
+    required=True,  # ← теперь обязательно
+    label="Дневный лимит трат (₽)",
+    help_text="0 = без лимита. Нельзя оставить пустым.",
+    widget=forms.NumberInput(attrs={
+        'step': '1',
+        'placeholder': 'Например 1000',
+        'min': '0',           # нельзя отрицательный
+        'value': '0'          # дефолтное значение в поле
+    })
+)
+
+def clean_daily_budget(self):
+    value = self.cleaned_data['daily_budget']
+    if value is None:
+        value = 0.00  # если пользователь стёр всё — ставим 0
+    if value < 0:
+        raise forms.ValidationError("Лимит не может быть отрицательным")
+    return value

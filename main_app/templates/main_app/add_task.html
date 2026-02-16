@@ -139,17 +139,34 @@
         {% endif %}
     </div>
 
-    <!-- Дневной лимит трат -->
-    <div class="form-group">
-        <label for="{{ form.daily_budget.id_for_label }}">Дневной лимит трат (₽)</label>
-        {{ form.daily_budget|add_class:"nice-input" }}
-        <small class="text-muted d-block" style="color:#7890aa;font-size:.99em;">
-            0 = без лимита. Если за день потрачено ≥ суммы — биддер не повышает ставку.
-        </small>
-        {% if form.daily_budget.errors %}
-            <div class="field-errors">{{ form.daily_budget.errors }}</div>
-        {% endif %}
-    </div>
+    <!-- Дневный лимит трат -->
+<div class="form-group">
+    <label for="{{ form.daily_budget.id_for_label }}">Дневный лимит трат (₽)</label>
+    {{ form.daily_budget }}
+    <small class="text-muted d-block">
+        0 = без лимита. Поле обязательно для заполнения.
+    </small>
+    {% if form.daily_budget.errors %}
+        <div class="field-errors">{{ form.daily_budget.errors }}</div>
+    {% endif %}
+</div>
+
+<!-- JS-защита от стирания поля -->
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const budgetInput = document.getElementById('id_daily_budget');
+    budgetInput.addEventListener('input', function() {
+        if (this.value === '') {
+            this.value = '0';
+        }
+    });
+    budgetInput.addEventListener('blur', function() {
+        if (this.value === '' || isNaN(this.value)) {
+            this.value = '0';
+        }
+    });
+});
+</script>
 
     <!-- Современный тумблер “Активен” -->
     <div class="form-group form-group-toggle" style="display:flex;align-items:center;gap:1.1em;">
