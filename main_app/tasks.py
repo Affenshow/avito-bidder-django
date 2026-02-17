@@ -150,14 +150,20 @@ def run_bidding_for_task(self, task_id: int):
 
     # --- 1. ПОЛУЧЕНИЕ ТОКЕНА (без изменений) ---
     if not task.avito_account:
-        # ... (код обработки отсутствия аккаунта)
+        TaskLog.objects.create(task=task, message="Задача не привязана к аккаунту Avito. Работа невозможна.", level='ERROR')
+        if task.is_active:
+            delay = 300 + random.randint(-120, 120)
+            run_bidding_for_task.apply_async(args=[task_id], countdown=delay)
         return
     access_token = get_avito_access_token(
         task.avito_account.avito_client_id,
         task.avito_account.avito_client_secret
     )
     if not access_token:
-        # ... (код обработки отсутствия токена)
+        TaskLog.objects.create(task=task, message="Не удалось получить токен от аккаунта Avito.", level='ERROR')
+        if task.is_active:
+            delay = 300 + random.randint(-120, 120)
+            run_bidding_for_task.apply_async(args=[task_id], countdown=delay)
         return
 
     # --- 2. ПРОВЕРКА РАСПИСАНИЯ (без изменений) ---
@@ -166,8 +172,8 @@ def run_bidding_for_task(self, task_id: int):
         current_price = get_current_ad_price(task.ad_id, access_token)
         min_price = float(task.min_price)
         if current_price is not None and float(current_price) > min_price:
-            # Ваша функция set_ad_price уже умеет работать без лимита
-            if set_ad_price(task.ad_id, min_price, access_token):
+            # При снижении цены мы также передаем лимит, чтобы он не "слетел"
+            if set_ad_price(task.ad_id, min_price, access_token, daily_limit_rub=float(task.daily_budget)):
                 TaskLog.objects.create(task=task, message=f"↓ Цена снижена до минимума {min_price} ₽ (вне расписания).", level='INFO')
                 task.current_price = min_price
                 task.save(update_fields=['current_price'])
@@ -186,12 +192,33 @@ def run_bidding_for_task(self, task_id: int):
 
     # --- Логика "Выхода из 50-го места" (без изменений) ---
     if ad_data is None:
-        # ... (весь ваш код для ad_data is None, включая вызов set_ad_price с лимитом)
-        # Убедитесь, что внутри этого блока вызов выглядит так:
-        # set_ad_price(task.ad_id, new_price, access_token, daily_limit_rub=float(task.daily_budget))
-        pass # Этот код у вас уже есть
+        TaskLog.objects.create(task=task, message="Ошибка парсера: объявление не найдено в топ-50.", level='ERROR')
+        task.current_position = None
+        if task.freeze_price_if_not_found:
+            TaskLog.objects.create(task=task, message="Цена заморожена (согласно настройке).", level='WARNING')
+        else:
+            current_price_from_db = task.current_price
+            log_message = ""
+            if current_price_from_db is None:
+                new_price = float(task.min_price)
+                log_message = f"↑ (Первый толчок) Установлена минимальная цена {new_price} ₽."
+            else:
+                new_price = float(current_price_from_db) + float(task.bid_step)
+                log_message = f"↑ (Вслепую) Повышена до {new_price} ₽."
+            
+            if new_price <= float(task.max_price):
+                # Здесь тоже передаем лимит
+                if set_ad_price(task.ad_id, new_price, access_token, daily_limit_rub=float(task.daily_budget)):
+                    TaskLog.objects.create(task=task, message=log_message, level='WARNING')
+                    task.current_price = new_price
+                else:
+                    TaskLog.objects.create(task=task, message=f"Ошибка установки цены {new_price} ₽.", level='ERROR')
+            else:
+                TaskLog.objects.create(task=task, message=f"Достигнут максимум {task.max_price} ₽.", level='WARNING')
+        
+        task.save(update_fields=['current_position', 'current_price'])
     else:
-        # --- Логика для найденного объявления (с единственным изменением) ---
+        # --- Логика для найденного объявления (с упрощенным бюджетом) ---
         position = ad_data.get("position")
         current_price = get_current_ad_price(task.ad_id, access_token)
         
@@ -205,14 +232,13 @@ def run_bidding_for_task(self, task_id: int):
         if current_price is None:
             TaskLog.objects.create(task=task, message="Не удалось получить цену.", level='ERROR')
         else:
-            # +++ ИЗМЕНЕНИЕ: ПОЛНОСТЬЮ УДАЛЕН НЕПРАВИЛЬНЫЙ БЛОК ПРОВЕРКИ БЮДЖЕТА +++
-            # Мы больше не "гадаем" о бюджете по позиции.
+            # УДАЛЕНА старая, неверная проверка бюджета.
             
-            # Ваша умная логика ставки (без изменений)
+            # Умная логика ставки
             if position > task.target_position_max:
                 new_price = float(current_price) + float(task.bid_step)
                 if new_price <= float(task.max_price):
-                    # Просто передаем лимит в функцию. Avito сам разберется.
+                    # Просто передаем лимит в функцию
                     success = set_ad_price(task.ad_id, new_price, access_token, daily_limit_rub=float(task.daily_budget))
                     if success:
                         TaskLog.objects.create(task=task, message=f"↑ Повышена до {new_price} ₽ (позиция {position} > {task.target_position_max})", level='WARNING')
@@ -223,7 +249,7 @@ def run_bidding_for_task(self, task_id: int):
             else:
                 new_price = float(current_price) - float(task.bid_step)
                 if new_price >= float(task.min_price):
-                    # И здесь тоже просто передаем лимит.
+                    # И здесь тоже просто передаем лимит
                     success = set_ad_price(task.ad_id, new_price, access_token, daily_limit_rub=float(task.daily_budget))
                     if success:
                         TaskLog.objects.create(task=task, message=f"↓ Понижена до {new_price} ₽ (экономия, позиция {position} в норме или лучше)", level='INFO')
@@ -238,6 +264,7 @@ def run_bidding_for_task(self, task_id: int):
         delay = 300 + random.randint(-120, 120)
         logger.info(f"Задача {task_id} перезапустится через {delay} сек")
         run_bidding_for_task.apply_async(args=[task_id], countdown=delay)
+
 
 
 

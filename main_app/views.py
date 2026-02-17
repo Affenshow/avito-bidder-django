@@ -94,15 +94,25 @@ def get_ads_for_account(request, account_id):
 
 @login_required
 def task_list_view(request):
+    # Получаем все задачи текущего пользователя
     tasks = BiddingTask.objects.filter(avito_account__user=request.user).select_related('avito_account')
     
+    # +++ НАЧАЛО ИЗМЕНЕНИЙ +++
+    # Получаем все аккаунты этого пользователя, чтобы построить кнопки-фильтры
+    accounts = AvitoAccount.objects.filter(user=request.user)
+    # +++ КОНЕЦ ИЗМЕНЕНИЙ +++
+
+    # Ваша логика обработки расписания (оставляем без изменений)
     for task in tasks:
         try:
             task.schedule_list = json.loads(task.schedule)
         except (json.JSONDecodeError, TypeError):
             task.schedule_list = []
-
-    context = {'tasks': tasks}
+    
+    context = {
+        'tasks': tasks,
+        'accounts': accounts, # <-- Передаем аккаунты в шаблон
+    }
     return render(request, 'main_app/task_list.html', context)
 
 # +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
