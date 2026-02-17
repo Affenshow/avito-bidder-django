@@ -124,7 +124,7 @@ def get_current_ad_price(ad_id: int, access_token: str) -> Union[float, None]:
 def set_ad_price(ad_id: int, new_price: float, access_token: str, daily_limit_rub: float = None) -> bool:
     """
     Устанавливает новую цену просмотра и (опционально) дневной лимит трат.
-    Использует эндпоинт /cpxpromo/1/setManual с параметром limitPenny.
+    Использует эндпоинт /cpxpromo/1/setManual.
     """
     if not access_token:
         logger.error("[SET] Нет access_token — установка невозможна")
@@ -135,30 +135,37 @@ def set_ad_price(ad_id: int, new_price: float, access_token: str, daily_limit_ru
         'Content-Type': 'application/json',
         'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/121.0.0.0 Safari/537.36'
     }
-
-    ACTION_TYPE_ID_FOR_VIEWS = 5  # для просмотров (самый частый тип)
-
+    
+    ACTION_TYPE_ID_FOR_VIEWS = 5
     body = {
         "itemID": ad_id,
         "actionTypeID": ACTION_TYPE_ID_FOR_VIEWS,
-        "bidPenny": int(new_price * 100)  # ставка в копейках
+        "bidPenny": int(new_price * 100)
     }
 
-    # Если передан лимит — добавляем его в запрос
-    if daily_limit_rub is not None and daily_limit_rub >= 0:
-        limit_kopecks = int(daily_limit_rub * 100)
-        body["limitPenny"] = limit_kopecks
-        logger.info(f"[SET] Установка ставки {new_price} ₽ + лимита {daily_limit_rub} ₽ ({limit_kopecks} коп.)")
+    # --- ИСПРАВЛЕННАЯ ЛОГИКА ---
+    log_message = f"Установка ставки {new_price} ₽"
 
+    if daily_limit_rub is not None:
+        if daily_limit_rub > 0:
+            # Если лимит БОЛЬШЕ нуля, устанавливаем его
+            limit_kopecks = int(daily_limit_rub * 100)
+            body["limitPenny"] = limit_kopecks
+            log_message += f" + лимита {daily_limit_rub} ₽"
+        else:
+            # Если лимит 0 или меньше, передаем null для СНЯТИЯ лимита
+            body["limitPenny"] = None
+            log_message += " и СНЯТИЕ дневного лимита"
+    
     try:
+        logger.info(f"[SET] {log_message}")
         logger.info(f"[SET] Отправка запроса на {SET_MANUAL_BID_URL} с body: {body}")
+        
         response = requests.post(SET_MANUAL_BID_URL, headers=headers, json=body, timeout=15)
         response.raise_for_status()
-
-        # Авито часто возвращает 200 с пустым телом — это успех
+        
         logger.info(f"[SET] УСПЕХ! Статус: {response.status_code}, Ответ: {response.text or 'пусто'}")
         return True
-
     except requests.exceptions.RequestException as e:
         logger.error(f"[SET] Ошибка установки ставки/лимита: {e}")
         if hasattr(e, 'response') and e.response is not None:
