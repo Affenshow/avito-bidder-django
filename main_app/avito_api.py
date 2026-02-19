@@ -2,12 +2,51 @@
 
 import requests
 import logging
+import random
+import time
 from typing import Union, Dict, List
 
 logger = logging.getLogger(__name__)
 
-# --- URL для смены IP прокси ---
-CHANGE_IP_URL = 'https://changeip.mobileproxy.space/?proxy_key=65a15a75eb565bba6e220d15559005e3'
+# --- Прокси-пул (оба твоих прокси) ---
+PROXY_POOL = [
+    {
+        'user': 'uKuNaf',
+        'pass': 'FAjEC5HeK7yt',
+        'host': 'mproxy.site',
+        'port': 17563,
+        'change_ip_url': 'https://changeip.mobileproxy.space/?proxy_key=65a15a75eb565bba6e220d15559005e3'
+    },
+    {
+        'user': 'vuU1DY',
+        'pass': 'apsYVEZRaY7c',
+        'host': 'mproxy.site',
+        'port': 11289,
+        'change_ip_url': 'https://changeip.mobileproxy.space/?proxy_key=7db42d70377c063ba427f4487f63aa6f'
+    },
+    # Если купишь третий — просто добавь сюда словарь
+]
+
+def get_random_proxy() -> Dict:
+    """Возвращает случайный прокси из пула"""
+    proxy = random.choice(PROXY_POOL)
+    return {
+        'http': f'http://{proxy["user"]}:{proxy["pass"]}@{proxy["host"]}:{proxy["port"]}',
+        'https': f'http://{proxy["user"]}:{proxy["pass"]}@{proxy["host"]}:{proxy["port"]}',
+    }, proxy  # возвращаем и прокси-словарь, чтобы знать, какой IP менять
+
+
+def rotate_proxy_ip(proxy: Dict):
+    """Смена IP для конкретного прокси"""
+    try:
+        logger.info(f"[PROXY] Смена IP для порта {proxy['port']}...")
+        response = requests.get(proxy['change_ip_url'], timeout=10)
+        response.raise_for_status()
+        logger.info(f"[PROXY] IP успешно сменён для порта {proxy['port']}. Ответ: {response.text}")
+        time.sleep(5)  # даём время прокси на смену IP
+    except Exception as e:
+        logger.error(f"[PROXY] Ошибка смены IP для порта {proxy['port']}: {e}")
+
 
 # --- Основные эндпоинты Avito ---
 TOKEN_URL = 'https://api.avito.ru/token/'
@@ -16,8 +55,8 @@ CORE_BALANCE_URL_TPL = 'https://api.avito.ru/core/v1/accounts/{user_id}/balance'
 CPA_BALANCE_URL = 'https://api.avito.ru/cpa/v3/balanceInfo'
 
 # --- Эндпоинты для ставок CPxPromo ---
-GET_BIDS_URL_TPL = 'https://api.avito.ru/cpxpromo/1/getBids/{item_id}'   # диапазоны ставок, текущая ставка
-SET_MANUAL_BID_URL = 'https://api.avito.ru/cpxpromo/1/setManual'         # ручная установка ставки + лимит
+GET_BIDS_URL_TPL = 'https://api.avito.ru/cpxpromo/1/getBids/{item_id}'
+SET_MANUAL_BID_URL = 'https://api.avito.ru/cpxpromo/1/setManual'
 
 def get_avito_access_token(client_id: str, client_secret: str) -> Union[str, None]:
     """Обмен client_id и client_secret на access_token."""
@@ -70,7 +109,6 @@ def get_balances(access_token: str, user_id: int) -> Dict:
     result = {'real': None, 'bonus': None}
     headers = {'Authorization': f'Bearer {access_token}'}
 
-    # Реальный кошелёк
     try:
         url = CORE_BALANCE_URL_TPL.format(user_id=user_id)
         resp = requests.get(url, headers=headers, timeout=10)
@@ -79,7 +117,6 @@ def get_balances(access_token: str, user_id: int) -> Dict:
     except Exception as e:
         logger.warning(f"[BALANCE] Ошибка реального баланса: {e}")
 
-    # CPA-бонус (аванс)
     try:
         cpa_headers = {**headers, 'X-Source': 'AvitoBidder'}
         resp = requests.post(CPA_BALANCE_URL, headers=cpa_headers, json={}, timeout=10)
@@ -92,39 +129,45 @@ def get_balances(access_token: str, user_id: int) -> Dict:
 
 
 def get_current_ad_price(ad_id: int, access_token: str) -> Union[float, None]:
-    """Получает текущую ставку объявления."""
     if not access_token:
         return None
 
     headers = {'Authorization': f'Bearer {access_token}'}
     url = GET_BIDS_URL_TPL.format(item_id=ad_id)
 
-    try:
-        logger.info(f"[STAVKA] Запрос текущей ставки для ad_id={ad_id}")
-        response = requests.get(url, headers=headers, timeout=15)
-        response.raise_for_status()
-        data = response.json()
+    max_retries = 3
+    proxy_used = None  # ← добавляем
 
-        logger.debug(f"[STAVKA] Полный ответ API: {data}")
+    for attempt in range(max_retries):
+        proxies, proxy_used = get_random_proxy()
+        try:
+            logger.info(f"[STAVKA] Попытка {attempt+1}/{max_retries} через прокси {proxy_used['port']}")
+            response = requests.get(url, headers=headers, proxies=proxies, timeout=15)
+            response.raise_for_status()
+            data = response.json()
+            
+            bid_in_kopecks = data.get('manual', {}).get('bidPenny')
+            if bid_in_kopecks is not None:
+                price = float(bid_in_kopecks) / 100
+                logger.info(f"[STAVKA] Текущая цена: {price} ₽")
+                return price
+            
+            logger.warning("[STAVKA] Поле manual.bidPenny не найдено")
+            return None
 
-        bid_in_kopecks = data.get('manual', {}).get('bidPenny')
-        if bid_in_kopecks is not None:
-            price = float(bid_in_kopecks) / 100
-            logger.info(f"[STAVKA] Текущая цена: {price} ₽")
-            return price
+        except requests.exceptions.RequestException as e:
+            logger.error(f"[STAVKA] Ошибка на попытке {attempt+1} (прокси {proxy_used['port'] if proxy_used else 'неизвестный'}): {e}")
+            if proxy_used is not None:
+                rotate_proxy_ip(proxy_used)
+            time.sleep(5)
 
-        logger.warning("[STAVKA] Поле manual.bidPenny не найдено")
-        return None
-
-    except requests.exceptions.RequestException as e:
-        logger.error(f"[STAVKA] Ошибка запроса ставки: {e}")
-        return None
+    logger.error("[STAVKA] Все попытки провалились")
+    return None
 
 
 def set_ad_price(ad_id: int, new_price: float, access_token: str, daily_limit_rub: float = None) -> bool:
     """
     Устанавливает новую цену просмотра и (опционально) дневной лимит трат.
-    Использует эндпоинт /cpxpromo/1/setManual.
     """
     if not access_token:
         logger.error("[SET] Нет access_token — установка невозможна")
@@ -135,55 +178,59 @@ def set_ad_price(ad_id: int, new_price: float, access_token: str, daily_limit_ru
         'Content-Type': 'application/json',
         'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/121.0.0.0 Safari/537.36'
     }
-    
+
     ACTION_TYPE_ID_FOR_VIEWS = 5
+
     body = {
         "itemID": ad_id,
         "actionTypeID": ACTION_TYPE_ID_FOR_VIEWS,
         "bidPenny": int(new_price * 100)
     }
 
-    # --- ИСПРАВЛЕННАЯ ЛОГИКА ---
     log_message = f"Установка ставки {new_price} ₽"
 
     if daily_limit_rub is not None:
         if daily_limit_rub > 0:
-            # Если лимит БОЛЬШЕ нуля, устанавливаем его
             limit_kopecks = int(daily_limit_rub * 100)
-            body["limitPenny"] = limit_kopecks
+            body["dailyBudgetPenny"] = limit_kopecks
             log_message += f" + лимита {daily_limit_rub} ₽"
         else:
-            # Если лимит 0 или меньше, передаем null для СНЯТИЯ лимита
-            body["limitPenny"] = None
-            log_message += " и СНЯТИЕ дневного лимита"
-    
+            log_message += " (лимит 0 — параметр не передаётся)"
+
+    proxies, proxy_used = get_random_proxy()
+
     try:
         logger.info(f"[SET] {log_message}")
-        logger.info(f"[SET] Отправка запроса на {SET_MANUAL_BID_URL} с body: {body}")
+        logger.info(f"[SET] Отправка запроса на {SET_MANUAL_BID_URL} через прокси {proxy_used['port']} с body: {body}")
         
-        response = requests.post(SET_MANUAL_BID_URL, headers=headers, json=body, timeout=15)
+        response = requests.post(SET_MANUAL_BID_URL, headers=headers, json=body, proxies=proxies, timeout=15)
         response.raise_for_status()
         
         logger.info(f"[SET] УСПЕХ! Статус: {response.status_code}, Ответ: {response.text or 'пусто'}")
         return True
+
     except requests.exceptions.RequestException as e:
-        logger.error(f"[SET] Ошибка установки ставки/лимита: {e}")
+        logger.error(f"[SET] Ошибка установки ставки/лимита через прокси {proxy_used['port']}: {e}")
         if hasattr(e, 'response') and e.response is not None:
-            logger.error(f"[SET] Статус: {e.response.status_code}, Ответ: {e.response.text}")
+            status = e.response.status_code
+            text = e.response.text or 'пусто'
+            logger.error(f"[SET] Статус: {status}, Ответ сервера: {text}")
+            if status in (400, 403):
+                logger.warning("[SET] Авито отклонил запрос — возможно, параметр dailyBudgetPenny не поддерживается или IP заблокирован")
+        rotate_proxy_ip(proxy_used)  # меняем IP при ошибке
         return False
 
 
-def rotate_proxy_ip():
-    """Смена IP прокси."""
+def rotate_proxy_ip(proxy: Dict):
+    """Смена IP для конкретного прокси"""
     try:
-        logger.info("[PROXY] Запрос на смену IP...")
-        response = requests.get(CHANGE_IP_URL, timeout=30)
+        logger.info(f"[PROXY] Смена IP для порта {proxy['port']}...")
+        response = requests.get(proxy['change_ip_url'], timeout=10)
         response.raise_for_status()
-        logger.info("[PROXY] IP успешно сменён")
-        return True
+        logger.info(f"[PROXY] IP успешно сменён для порта {proxy['port']}. Ответ: {response.text}")
+        time.sleep(5)  # пауза на смену IP
     except Exception as e:
-        logger.error(f"[PROXY] Ошибка смены IP: {e}")
-        return False
+        logger.error(f"[PROXY] Ошибка смены IP для порта {proxy['port']}: {e}")
 
 
 def get_user_ads(access_token: str) -> Union[List[Dict], None]:
@@ -198,9 +245,11 @@ def get_user_ads(access_token: str) -> Union[List[Dict], None]:
     url = f"https://api.avito.ru/core/v1/accounts/{user_id}/ads/"
     headers = {'Authorization': f'Bearer {access_token}', 'Content-Type': 'application/json'}
 
+    proxies, proxy_used = get_random_proxy()
+
     try:
-        logger.info(f"[ADS] Запрос списка объявлений пользователя {user_id}...")
-        response = requests.get(url, headers=headers, timeout=20)
+        logger.info(f"[ADS] Запрос списка объявлений пользователя {user_id} через прокси {proxy_used['port']}...")
+        response = requests.get(url, headers=headers, proxies=proxies, timeout=20)
         response.raise_for_status()
         data = response.json()
         ads = data.get('resources', [])
@@ -217,5 +266,6 @@ def get_user_ads(access_token: str) -> Union[List[Dict], None]:
         return formatted
 
     except requests.exceptions.RequestException as e:
-        logger.error(f"[ADS] Ошибка запроса объявлений: {e}")
+        logger.error(f"[ADS] Ошибка запроса объявлений через прокси {proxy_used['port']}: {e}")
+        rotate_proxy_ip(proxy_used)
         return None

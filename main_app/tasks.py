@@ -11,72 +11,63 @@ from datetime import datetime
 from celery import shared_task
 
 # Ваши импорты
-from .avito_api import get_avito_access_token, get_current_ad_price, set_ad_price, rotate_proxy_ip
+from .avito_api import PROXY_POOL, get_avito_access_token, get_current_ad_price, set_ad_price, rotate_proxy_ip, get_random_proxy
 from .models import BiddingTask, TaskLog
 
 logger = logging.getLogger(__name__)
 
 
 def get_ad_position(search_url: str, ad_id: int) -> Union[Dict, None]:
-    """
-    Парсит страницу с помощью requests, используя прокси.
-    Возвращает словарь с позицией, заголовком и URL картинки.
-    """
     headers = {
         'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/121.0.0.0 Safari/537.36',
-        'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.7',
+        'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,*/*;q=0.8',
         'Accept-Language': 'ru-RU,ru;q=0.9,en-US;q=0.8,en;q=0.7',
     }
-    proxy_user = "uKuNaf"
-    proxy_pass = "FAjEC5HeK7yt"
-    proxy_host = "mproxy.site"
-    proxy_port = 17563
-    proxies = {
-       'http': f'http://{proxy_user}:{proxy_pass}@{proxy_host}:{proxy_port}',
-       'https': f'http://{proxy_user}:{proxy_pass}@{proxy_host}:{proxy_port}',
-    }
-    try:
-        logger.info(f"--- [REQUESTS] Запрос к {search_url} через прокси...")
-        response = requests.get(search_url, headers=headers, proxies=proxies, timeout=35)
-        response.raise_for_status()
-        soup = BeautifulSoup(response.text, 'html.parser')
-        
-        all_ads = soup.find_all('div', {'data-marker': 'item'})
-        logger.info(f"--- [REQUESTS] Найдено {len(all_ads)} объявлений на странице.")
-        if not all_ads:
-            return None
-        
-        for index, ad_element in enumerate(all_ads):
-            if ad_element.get('data-item-id') == str(ad_id):
-                position = index + 1
-                title = "Название не найдено"
-                image_url = None
-                
-                try:
+
+    max_retries = 3
+    proxy_used = None  # ← объявляем заранее, Pylance теперь доволен
+
+    for attempt in range(max_retries):
+        proxies, proxy_used = get_random_proxy()  # ← присваиваем
+        try:
+            logger.info(f"[REQUESTS] Попытка {attempt+1}/{max_retries} через прокси порт {proxy_used['port']}")
+            response = requests.get(search_url, headers=headers, proxies=proxies, timeout=40)
+            response.raise_for_status()
+            soup = BeautifulSoup(response.text, 'html.parser')
+            
+            all_ads = soup.find_all('div', {'data-marker': 'item'})
+            logger.info(f"[REQUESTS] Найдено {len(all_ads)} объявлений.")
+            if not all_ads:
+                return None
+            
+            for index, ad_element in enumerate(all_ads):
+                if ad_element.get('data-item-id') == str(ad_id):
+                    position = index + 1
+                    title = "Название не найдено"
+                    image_url = None
+                    
                     title_tag = ad_element.find('a', {'data-marker': 'item-title'})
                     if title_tag:
                         title = title_tag.text.strip()
-                except Exception:
-                    logger.warning("Не удалось найти заголовок.")
-                
-                try:
-                    img_container = ad_element.find('div', class_=lambda x: x and 'photo-slider-item' in x)
-                    if img_container:
-                        img_tag = img_container.find('img')
-                        if img_tag:
-                            image_url = img_tag.get('src')
-                except Exception:
-                    logger.warning("Не удалось найти картинку.")
-                
-                logger.info(f"--- [REQUESTS] Найдено объявление {ad_id} на позиции {position}! ---")
-                return {"position": position, "title": title, "image_url": image_url}
-        
-        logger.warning(f"--- [REQUESTS] Объявление {ad_id} НЕ найдено на странице.")
-        return None
-    
-    except requests.exceptions.RequestException as e:
-        logger.error(f"--- [REQUESTS] КРИТИЧЕСКАЯ ОШИБКА: {e}")
-        return None
+                    
+                    img_tag = ad_element.find('img')
+                    if img_tag:
+                        image_url = img_tag.get('src') or img_tag.get('data-src')
+
+                    logger.info(f"[REQUESTS] Объявление {ad_id} на позиции {position}")
+                    return {"position": position, "title": title, "image_url": image_url}
+            
+            logger.warning(f"[REQUESTS] Объявление {ad_id} не найдено")
+            return None
+
+        except requests.exceptions.RequestException as e:
+            logger.error(f"[REQUESTS] Ошибка на попытке {attempt+1} (прокси {proxy_used['port'] if proxy_used else 'неизвестный'}): {e}")
+            if proxy_used is not None:  # ← безопасная проверка
+                rotate_proxy_ip(proxy_used)
+            time.sleep(8 + random.uniform(0, 8))
+
+    logger.error(f"[REQUESTS] Все {max_retries} попытки провалились")
+    return None
 
 
 def is_time_in_schedule(schedule_data) -> bool:
@@ -183,10 +174,11 @@ def run_bidding_for_task(self, task_id: int):
             run_bidding_for_task.apply_async(args=[task_id], countdown=delay)
         return
 
-    # --- 3. ОСНОВНАЯ ЛОГИКА БИДДЕРА ---
+        # --- 3. ОСНОВНАЯ ЛОГИКА БИДДЕРА ---
     TaskLog.objects.create(task=task, message=f"Запуск биддера для {task.ad_id}")
-    rotate_proxy_ip()
-    time.sleep(random.uniform(10, 25))
+    proxies, proxy_used = get_random_proxy()  # ← добавь перед rotate
+    rotate_proxy_ip(proxy_used)  # ← исправлено
+    time.sleep(random.uniform(5, 15))  # ← быстрее, но всё ещё безопасно
     
     ad_data = get_ad_position(task.search_url, task.ad_id)
 
@@ -261,7 +253,7 @@ def run_bidding_for_task(self, task_id: int):
     # --- 5. ФИНАЛЬНОЕ ПЕРЕПЛАНИРОВАНИЕ (без изменений) ---
     TaskLog.objects.create(task=task, message="Цикл завершён")
     if task.is_active:
-        delay = 300 + random.randint(-120, 120)
+        delay = 120 + random.randint(-60, 60)  # 60–180 сек, в среднем 2 минуты
         logger.info(f"Задача {task_id} перезапустится через {delay} сек")
         run_bidding_for_task.apply_async(args=[task_id], countdown=delay)
 
