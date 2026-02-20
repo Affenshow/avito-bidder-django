@@ -68,6 +68,26 @@
                     {% endif %}
                 </div>
 
+                <!-- Кнопка загрузки объявлений -->
+                {% if not object %}
+                <div class="fg">
+                    <button type="button" id="loadAdsBtn" class="btn-load-ads" disabled>
+                        <i class="fas fa-download" id="loadAdsIcon"></i>
+                        <span id="loadAdsText">Загрузить объявления с аккаунта</span>
+                        <span id="loadAdsSpinner" class="spinner-small d-none"></span>
+                    </button>
+                </div>
+
+                <!-- Список объявлений (появляется после загрузки) -->
+                <div id="adsListWrapper" class="ads-list-wrapper d-none">
+                    <div class="ads-list-header">
+                        <input type="text" id="adsSearch" class="fg-input" placeholder="🔍 Поиск по названию..." style="max-width: 100%;">
+                        <div class="ads-list-count" id="adsCount"></div>
+                    </div>
+                    <div id="adsList" class="ads-list"></div>
+                </div>
+                {% endif %}
+
                 <!-- ID Объявления -->
                 <div class="fg">
                     <label class="fg-label" for="{{ form.ad_id.id_for_label }}">
@@ -75,6 +95,9 @@
                     </label>
                     <div class="fg-input-wrap">
                         {{ form.ad_id|add_class:"fg-input" }}
+                    </div>
+                    <div class="fg-hint">
+                        <i class="fas fa-info-circle"></i> Выберите из списка выше или введите вручную
                     </div>
                     {% if form.ad_id.errors %}
                         <div class="fg-error"><i class="fas fa-exclamation-circle"></i> {{ form.ad_id.errors }}</div>
@@ -462,6 +485,133 @@
         margin-top: 6px;
     }
 
+    /* ===== LOAD ADS BUTTON ===== */
+    .btn-load-ads {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 10px;
+        width: 100%;
+        padding: 14px 20px;
+        background: linear-gradient(135deg, #3b82f6, #1d4ed8);
+        color: #fff;
+        border: none;
+        border-radius: var(--radius-sm);
+        font-family: inherit;
+        font-size: 0.9em;
+        font-weight: 600;
+        cursor: pointer;
+        transition: all 0.2s;
+    }
+    .btn-load-ads:hover:not(:disabled) {
+        background: linear-gradient(135deg, #2563eb, #1e40af);
+        transform: translateY(-1px);
+        box-shadow: 0 4px 12px rgba(59, 130, 246, 0.3);
+    }
+    .btn-load-ads:disabled {
+        opacity: 0.5;
+        cursor: not-allowed;
+    }
+    .spinner-small {
+        width: 16px;
+        height: 16px;
+        border: 2px solid rgba(255,255,255,0.3);
+        border-top-color: #fff;
+        border-radius: 50%;
+        animation: spin 0.8s linear infinite;
+    }
+    @keyframes spin {
+        to { transform: rotate(360deg); }
+    }
+    .d-none { display: none !important; }
+
+    /* ===== ADS LIST ===== */
+    .ads-list-wrapper {
+        border: 1px solid var(--gray-200);
+        border-radius: var(--radius-sm);
+        overflow: hidden;
+        margin-bottom: 4px;
+    }
+    .ads-list-header {
+        padding: 12px;
+        background: var(--gray-50);
+        border-bottom: 1px solid var(--gray-200);
+    }
+    .ads-list-header .fg-input {
+        margin-bottom: 8px;
+    }
+    .ads-list-count {
+        font-size: 0.78em;
+        color: var(--gray-500);
+    }
+    .ads-list {
+        max-height: 400px;
+        overflow-y: auto;
+    }
+    .ad-item {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        padding: 12px 16px;
+        border-bottom: 1px solid var(--gray-100);
+        cursor: pointer;
+        transition: all 0.15s;
+    }
+    .ad-item:last-child {
+        border-bottom: none;
+    }
+    .ad-item:hover {
+        background: #f0f7ff;
+    }
+    .ad-item.selected {
+        background: #dbeafe;
+        border-left: 3px solid #3b82f6;
+    }
+    .ad-item.already-added {
+        opacity: 0.4;
+        cursor: not-allowed;
+        background: var(--gray-50);
+    }
+    .ad-item-radio {
+        width: 18px;
+        height: 18px;
+        accent-color: #3b82f6;
+        flex-shrink: 0;
+    }
+    .ad-item-info {
+        flex: 1;
+        min-width: 0;
+    }
+    .ad-item-title {
+        font-weight: 600;
+        font-size: 0.88em;
+        color: var(--gray-800);
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+    }
+    .ad-item-meta {
+        font-size: 0.75em;
+        color: var(--gray-500);
+        margin-top: 2px;
+    }
+    .ad-item-price {
+        font-weight: 700;
+        font-size: 0.9em;
+        color: #10b981;
+        white-space: nowrap;
+        flex-shrink: 0;
+    }
+    .ad-item-badge {
+        font-size: 0.7em;
+        padding: 2px 8px;
+        border-radius: 10px;
+        background: var(--gray-200);
+        color: var(--gray-500);
+        font-weight: 600;
+        flex-shrink: 0;
+    }
+
     /* ===== SLIDER ===== */
     .slider-display {
         display: flex;
@@ -491,7 +641,6 @@
     .position-slider {
         margin: 0 8px;
     }
-    /* noUiSlider overrides */
     .noUi-target {
         background: var(--gray-200) !important;
         border: none !important;
@@ -589,7 +738,6 @@
         font-size: 0.85em;
     }
 
-    /* Day chips */
     .schedule-days {
         display: flex;
         gap: 6px;
@@ -728,52 +876,22 @@
 
     /* ===== RESPONSIVE ===== */
     @media (max-width: 768px) {
-        .task-form-card {
-            max-width: 100%;
-        }
-        .form-section-body {
-            padding: 16px;
-        }
-        .form-section-header {
-            padding: 16px;
-        }
-        .fg-row {
-            grid-template-columns: 1fr;
-        }
-        .schedule-days {
-            gap: 4px;
-        }
-        .day-chip span {
-            width: 36px; height: 32px;
-            font-size: 0.75em;
-        }
-        .form-submit-section {
-            flex-direction: column-reverse;
-        }
-        .form-submit-section .btn {
-            width: 100%;
-            justify-content: center;
-        }
-        .schedule-time-row {
-            flex-direction: column;
-            gap: 8px;
-        }
-        .schedule-time-sep {
-            display: none;
-        }
+        .task-form-card { max-width: 100%; }
+        .form-section-body { padding: 16px; }
+        .form-section-header { padding: 16px; }
+        .fg-row { grid-template-columns: 1fr; }
+        .schedule-days { gap: 4px; }
+        .day-chip span { width: 36px; height: 32px; font-size: 0.75em; }
+        .form-submit-section { flex-direction: column-reverse; }
+        .form-submit-section .btn { width: 100%; justify-content: center; }
+        .schedule-time-row { flex-direction: column; gap: 8px; }
+        .schedule-time-sep { display: none; }
     }
 
     @media (max-width: 480px) {
-        .form-section-header {
-            padding: 12px;
-        }
-        .form-section-body {
-            padding: 12px;
-        }
-        .form-section-icon {
-            width: 34px; height: 34px;
-            font-size: 0.85em;
-        }
+        .form-section-header { padding: 12px; }
+        .form-section-body { padding: 12px; }
+        .form-section-icon { width: 34px; height: 34px; font-size: 0.85em; }
     }
 </style>
 {% endblock %}
@@ -782,6 +900,135 @@
 {{ block.super }}
 <script>
 document.addEventListener('DOMContentLoaded', function() {
+
+    // ===== LOAD ADS FROM ACCOUNT =====
+    var accountSelect = document.getElementById('id_avito_account');
+    var loadAdsBtn = document.getElementById('loadAdsBtn');
+    var loadAdsText = document.getElementById('loadAdsText');
+    var loadAdsIcon = document.getElementById('loadAdsIcon');
+    var loadAdsSpinner = document.getElementById('loadAdsSpinner');
+    var adsListWrapper = document.getElementById('adsListWrapper');
+    var adsList = document.getElementById('adsList');
+    var adsSearch = document.getElementById('adsSearch');
+    var adsCount = document.getElementById('adsCount');
+    var adIdInput = document.getElementById('id_ad_id');
+
+    var allAds = [];
+    var selectedAdId = null;
+
+    if (accountSelect && loadAdsBtn) {
+        // Enable/disable button based on account selection
+        accountSelect.addEventListener('change', function() {
+            loadAdsBtn.disabled = !this.value;
+            if (adsListWrapper) {
+                adsListWrapper.classList.add('d-none');
+            }
+            allAds = [];
+            selectedAdId = null;
+        });
+
+        // Initial state
+        loadAdsBtn.disabled = !accountSelect.value;
+
+        // Load ads
+        loadAdsBtn.addEventListener('click', function() {
+            var accountId = accountSelect.value;
+            if (!accountId) return;
+
+            loadAdsText.textContent = 'Загрузка...';
+            loadAdsIcon.classList.add('d-none');
+            loadAdsSpinner.classList.remove('d-none');
+            loadAdsBtn.disabled = true;
+
+            fetch('/api/account/' + accountId + '/items/')
+                .then(function(r) { return r.json(); })
+                .then(function(data) {
+                    if (data.error) {
+                        alert('Ошибка: ' + data.error);
+                        return;
+                    }
+                    allAds = data.items || [];
+                    renderAds(allAds);
+                    adsListWrapper.classList.remove('d-none');
+                })
+                .catch(function(err) {
+                    alert('Ошибка загрузки: ' + err);
+                })
+                .finally(function() {
+                    loadAdsText.textContent = 'Загрузить объявления с аккаунта';
+                    loadAdsIcon.classList.remove('d-none');
+                    loadAdsSpinner.classList.add('d-none');
+                    loadAdsBtn.disabled = false;
+                });
+        });
+
+        // Search
+        if (adsSearch) {
+            adsSearch.addEventListener('input', function() {
+                var query = this.value.toLowerCase();
+                var filtered = allAds.filter(function(item) {
+                    return item.title.toLowerCase().indexOf(query) !== -1 ||
+                           item.address.toLowerCase().indexOf(query) !== -1 ||
+                           String(item.id).indexOf(query) !== -1;
+                });
+                renderAds(filtered);
+            });
+        }
+    }
+
+    function renderAds(items) {
+        adsList.innerHTML = '';
+
+        var available = items.filter(function(i) { return !i.already_added; }).length;
+        var added = items.filter(function(i) { return i.already_added; }).length;
+        adsCount.textContent = 'Доступно: ' + available + ' · Уже добавлено: ' + added + ' · Всего: ' + items.length;
+
+        items.forEach(function(item) {
+            var div = document.createElement('div');
+            div.className = 'ad-item' + (item.already_added ? ' already-added' : '') + (item.id == selectedAdId ? ' selected' : '');
+
+            var priceStr = item.price ? item.price.toLocaleString('ru-RU') + ' ₽' : '';
+
+            div.innerHTML =
+                '<input type="radio" name="_ad_radio" class="ad-item-radio" value="' + item.id + '" ' +
+                (item.already_added ? 'disabled' : '') +
+                (item.id == selectedAdId ? ' checked' : '') + '>' +
+                '<div class="ad-item-info">' +
+                    '<div class="ad-item-title">' + item.title + '</div>' +
+                    '<div class="ad-item-meta">' + item.category + ' · ' + item.address + ' · ID: ' + item.id + '</div>' +
+                '</div>' +
+                '<div class="ad-item-price">' + priceStr + '</div>' +
+                (item.already_added ? '<span class="ad-item-badge">Добавлено</span>' : '');
+
+            if (!item.already_added) {
+                div.addEventListener('click', function() {
+                    selectedAdId = item.id;
+                    adIdInput.value = item.id;
+
+                    // Подсветка
+                    document.querySelectorAll('.ad-item').forEach(function(el) {
+                        el.classList.remove('selected');
+                        var radio = el.querySelector('.ad-item-radio');
+                        if (radio) radio.checked = false;
+                    });
+                    div.classList.add('selected');
+                    var radio = div.querySelector('.ad-item-radio');
+                    if (radio) radio.checked = true;
+
+                    // Подсветка поля ad_id
+                    adIdInput.style.borderColor = '#10b981';
+                    adIdInput.style.background = '#f0fdf4';
+                    setTimeout(function() {
+                        adIdInput.style.borderColor = '';
+                        adIdInput.style.background = '';
+                    }, 1500);
+                });
+            }
+
+            adsList.appendChild(div);
+        });
+    }
+
     // ===== Position Slider =====
     var sliderEl = document.getElementById('position-slider');
     var minInput = document.getElementById('id_target_position_min');
@@ -798,7 +1045,7 @@ document.addEventListener('DOMContentLoaded', function() {
             connect: true,
             step: 1,
             range: { min: 1, max: 50 },
-                        format: {
+            format: {
                 to: function(v) { return Math.round(v); },
                 from: function(v) { return parseInt(v); }
             }
@@ -841,7 +1088,6 @@ document.addEventListener('DOMContentLoaded', function() {
         intervalCount++;
         var newRow = scheduleTemplate.firstElementChild.cloneNode(true);
 
-        // Set title number
         var titleEl = newRow.querySelector('.schedule-row-title');
         titleEl.innerHTML = '<i class="fas fa-clock"></i> Интервал ' + intervalCount;
 
@@ -856,7 +1102,6 @@ document.addEventListener('DOMContentLoaded', function() {
             }
         }
 
-        // Events
         newRow.querySelectorAll('input').forEach(function(input) {
             input.addEventListener('change', updateScheduleJson);
         });
@@ -872,7 +1117,6 @@ document.addEventListener('DOMContentLoaded', function() {
             }, 200);
         });
 
-        // Animate in
         newRow.style.opacity = '0';
         newRow.style.transform = 'translateY(10px)';
         container.appendChild(newRow);
@@ -902,9 +1146,7 @@ document.addEventListener('DOMContentLoaded', function() {
                     createIntervalRow(data);
                 });
             }
-        } catch (e) {
-            // ignore
-        }
+        } catch (e) {}
     }
 
     addButton.addEventListener('click', function() {
@@ -913,7 +1155,7 @@ document.addEventListener('DOMContentLoaded', function() {
 
     loadInitialSchedule();
 
-    // ===== Daily budget protection =====
+    // ===== Daily budget =====
     var budgetInput = document.getElementById('id_daily_budget');
     if (budgetInput) {
         budgetInput.addEventListener('input', function() {
@@ -924,7 +1166,7 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     }
 
-    // ===== Form validation visual =====
+    // ===== Focus visual =====
     document.querySelectorAll('.fg-input, .fg-select').forEach(function(input) {
         input.addEventListener('focus', function() {
             this.closest('.fg').classList.add('fg-focused');
@@ -934,7 +1176,7 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     });
 
-    // ===== Smooth scroll to first error =====
+    // ===== Scroll to first error =====
     var firstError = document.querySelector('.fg-error, .alert-danger');
     if (firstError) {
         firstError.scrollIntoView({ behavior: 'smooth', block: 'center' });

@@ -1,5 +1,6 @@
 import json
 import logging
+import requests
 from django.shortcuts import render, redirect, get_object_or_404
 from django.urls import reverse_lazy
 from django.views.generic import CreateView, UpdateView, DeleteView
@@ -254,3 +255,136 @@ def bulk_delete_tasks(request):
             'status': 'error',
             'message': str(e)
         }, status=400)
+    
+
+@login_required
+def api_account_items(request, account_id):
+    """API: список объявлений аккаунта Avito"""
+    from main_app.avito_api import get_avito_access_token
+    
+    account = get_object_or_404(AvitoAccount, id=account_id, user=request.user)
+    token = get_avito_access_token(account.avito_client_id, account.avito_client_secret)
+    
+    if not token:
+        return JsonResponse({"error": "Не удалось получить токен"}, status=400)
+    
+    headers = {"Authorization": f"Bearer {token}"}
+    
+    all_items = []
+    page = 1
+    
+    while True:
+        resp = requests.get(
+            "https://api.avito.ru/core/v1/items",
+            headers=headers,
+            params={"per_page": 100, "page": page, "status": "active"},
+            timeout=15
+        )
+        
+        if resp.status_code != 200:
+            break
+        
+        data = resp.json()
+        resources = data.get("resources", [])
+        
+        if not resources:
+            break
+        
+        all_items.extend(resources)
+        
+        if len(resources) < 100:
+            break
+        
+        page += 1
+    
+    # Убираем уже добавленные
+    existing_ad_ids = set(
+        BiddingTask.objects.filter(
+            avito_account=account
+        ).values_list("ad_id", flat=True)
+    )
+    
+    items = []
+    for item in all_items:
+        items.append({
+            "id": item["id"],
+            "title": item.get("title", ""),
+            "price": item.get("price", 0),
+            "url": item.get("url", ""),
+            "address": item.get("address", ""),
+            "category": item.get("category", {}).get("name", ""),
+            "status": item.get("status", ""),
+            "already_added": item["id"] in existing_ad_ids,
+        })
+    
+    return JsonResponse({"items": items, "total": len(items)})
+
+
+@login_required
+def add_task_page(request):
+    """Страница добавления задач"""
+    accounts = AvitoAccount.objects.filter(user=request.user)
+    return render(request, 'main_app/add_task.html', {'accounts': accounts})
+
+
+@login_required
+@require_POST
+def api_add_tasks(request):
+    """API: массовое добавление задач"""
+    try:
+        data = json.loads(request.body)
+    except json.JSONDecodeError:
+        return JsonResponse({"success": False, "error": "Invalid JSON"}, status=400)
+
+    account_id = data.get("account_id")
+    items = data.get("items", [])
+
+    if not account_id or not items:
+        return JsonResponse({"success": False, "error": "Нет данных"}, status=400)
+
+    account = get_object_or_404(AvitoAccount, id=account_id, user=request.user)
+
+    created = 0
+    added_ids = []
+
+    for item in items:
+        ad_id = item.get("ad_id")
+        if not ad_id:
+            continue
+
+        # Пропускаем дубликаты
+        if BiddingTask.objects.filter(avito_account=account, ad_id=ad_id).exists():
+            continue
+
+        task = BiddingTask.objects.create(
+            user=request.user,
+            avito_account=account,
+            ad_id=ad_id,
+            title=item.get("title", ""),
+            max_bid_kopecks=int(float(item.get("max_bid", 300)) * 100),
+            strategy=item.get("strategy", "match_position"),
+            target_position=int(item.get("target_position", 1)),
+            is_active=True,
+        )
+
+        # Пробуем получить картинку через парсинг URL
+        url = item.get("url", "")
+        if url:
+            try:
+                from main_app.avito_api import get_item_info
+                token = get_avito_access_token(account.avito_client_id, account.avito_client_secret)
+                info = get_item_info(token, ad_id)
+                if info and info.get("image_url"):
+                    task.image_url = info["image_url"]
+                    task.save(update_fields=["image_url"])
+            except Exception:
+                pass
+
+        created += 1
+        added_ids.append(ad_id)
+
+    return JsonResponse({
+        "success": True,
+        "created": created,
+        "added_ids": added_ids,
+    })
