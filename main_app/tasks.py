@@ -132,38 +132,42 @@ def run_bidding_for_task(self, task_id: int):
         logger.info(f"Задача {task_id} удалена или отключена.")
         return
 
-    # --- САМАЯ НАДЁЖНАЯ ЗАЩИТА ОТ ДУБЛЕЙ (кэш + lock) ---
     now = timezone.now()
+
+    # Ключ для времени последнего запуска
     last_run_key = f"bidding_last_run_{task_id}"
+    # Ключ для блокировки (в процессе выполнения)
     lock_key = f"bidding_lock_{task_id}"
 
-    # Проверяем кэш (быстрый фильтр)
-    last_run_time = cache.get(last_run_key)
-    if last_run_time and (now - last_run_time).total_seconds() < 120:  # 120 секунд
-        logger.info(f"Задача {task_id} уже запущена недавно — пропуск и перепланирование")
+    # 1. Проверяем, не выполняется ли задача прямо сейчас
+    if cache.get(lock_key):
+        logger.info(f"Задача {task_id} уже выполняется (lock занят) — пропуск и перепланирование")
         if task.is_active:
-            delay = 120 + random.randint(-60, 60)
+            delay = 180 + random.randint(-60, 60)
             run_bidding_for_task.apply_async(args=[task_id], countdown=delay)
         return
 
-    # Пытаемся взять блокировку (Redis lock на 120 сек)
-    lock = cache.lock(lock_key, timeout=120)
-    if not lock.acquire(blocking=False):
-        logger.info(f"Задача {task_id} уже выполняется (lock занят) — пропуск и перепланирование")
+    # 2. Проверяем, не запускалась ли недавно
+    last_run_time = cache.get(last_run_key)
+    if last_run_time and (now - last_run_time).total_seconds() < 120:  # 2 минуты
+        logger.info(f"Задача {task_id} запущена недавно ({last_run_time}) — пропуск")
         if task.is_active:
-            delay = 120 + random.randint(-60, 60)
+            delay = 180 + random.randint(-60, 60)
             run_bidding_for_task.apply_async(args=[task_id], countdown=delay)
         return
+
+    # Ставим флаг "в процессе" на 180 сек (время выполнения цикла)
+    cache.set(lock_key, True, timeout=180)
 
     try:
         # Записываем время запуска
-        cache.set(last_run_key, now, timeout=600)
+        cache.set(last_run_key, now, timeout=600)  # 10 минут
 
         # --- 1. ПОЛУЧЕНИЕ ТОКЕНА ---
         if not task.avito_account:
             TaskLog.objects.create(task=task, message="Задача не привязана к аккаунту Avito. Работа невозможна.", level='ERROR')
             if task.is_active:
-                delay = 120 + random.randint(-60, 60)
+                delay = 180 + random.randint(-60, 60)
                 run_bidding_for_task.apply_async(args=[task_id], countdown=delay)
             return
 
@@ -174,7 +178,7 @@ def run_bidding_for_task(self, task_id: int):
         if not access_token:
             TaskLog.objects.create(task=task, message="Не удалось получить токен от аккаунта Avito.", level='ERROR')
             if task.is_active:
-                delay = 120 + random.randint(-60, 60)
+                delay = 180 + random.randint(-60, 60)
                 run_bidding_for_task.apply_async(args=[task_id], countdown=delay)
             return
 
@@ -190,7 +194,7 @@ def run_bidding_for_task(self, task_id: int):
                     task.save(update_fields=['current_price'])
             
             if task.is_active:
-                delay = 120 + random.randint(-60, 60)
+                delay = 180 + random.randint(-60, 60)
                 run_bidding_for_task.apply_async(args=[task_id], countdown=delay)
             return
 
@@ -241,7 +245,6 @@ def run_bidding_for_task(self, task_id: int):
             if current_price is None:
                 TaskLog.objects.create(task=task, message="Не удалось получить цену.", level='ERROR')
             else:
-                # Умная логика ставки
                 if position > task.target_position_max:
                     new_price = float(current_price) + float(task.bid_step)
                     if new_price <= float(task.max_price):
@@ -266,12 +269,12 @@ def run_bidding_for_task(self, task_id: int):
         # --- 5. ФИНАЛЬНОЕ ПЕРЕПЛАНИРОВАНИЕ ---
         TaskLog.objects.create(task=task, message="Цикл завершён")
         if task.is_active:
-            delay = 120 + random.randint(-60, 60)  # 60–180 сек, среднее ~2 минуты
+            delay = 120 + random.randint(-60, 60)
             logger.info(f"Задача {task_id} перезапустится через {delay} сек")
             run_bidding_for_task.apply_async(args=[task_id], countdown=delay)
 
     finally:
-        lock.release()  # освобождаем блокировку (если lock был взят)
+        cache.delete(lock_key)  # освобождаем блокировку
 
 
 
