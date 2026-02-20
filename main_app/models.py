@@ -90,6 +90,11 @@ class BiddingTask(models.Model):
     is_active = models.BooleanField(default=True, verbose_name="Активен")
     created_at = models.DateTimeField(auto_now_add=True, verbose_name="Дата создания")
 
+    last_run = models.DateTimeField(
+    null=True, blank=True,
+    verbose_name="Последний запуск"
+)
+
     def __str__(self):
         return f"Задание #{self.id} для объявления {self.ad_id}"
 

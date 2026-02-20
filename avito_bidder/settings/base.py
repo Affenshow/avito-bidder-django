@@ -94,3 +94,11 @@ CELERY_TIMEZONE = 'Europe/Moscow'
 #        'schedule': crontab(minute='*/5'),
 #    },
 #}
+
+
+CELERY_BEAT_SCHEDULE = {
+    'revive-stale-tasks': {
+        'task': 'main_app.tasks.revive_stale_tasks',
+        'schedule': 300.0,  # каждые 5 минут
+    },
+}
