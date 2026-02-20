@@ -1,64 +1,332 @@
+{% load static %}
 <!DOCTYPE html>
-<html>
+<html lang="ru">
 <head>
-    <title>Подтверждение удаления</title>
-    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Удаление задачи — Bidder PRO</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
     <style>
+        *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+        html, body { height: 100%; }
         body {
-            font-family: 'Segoe UI', Arial, sans-serif;
-            display: flex; justify-content: center; align-items: center;
-            min-height: 100vh; background-color: #f7fdff;
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: #0f172a;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            min-height: 100vh;
+            -webkit-font-smoothing: antialiased;
+            overflow: hidden;
         }
-        .delete-dialog {
-            max-width: 382px; width: 96vw; margin: 1em;
-            padding: 2.2em 2em 2em 2em;
-            background: #fff;
-            border-radius: 16px;
-            box-shadow:0 12px 40px #38a3a51a,0 2px 9px #b5dfd717;
+
+        /* BG */
+        .bg-pattern {
+            position: fixed; inset: 0; z-index: 0; overflow: hidden;
+        }
+        .bg-pattern .circle {
+            position: absolute; border-radius: 50%;
+            filter: blur(80px); opacity: 0.12;
+            animation: floatBg 20s infinite ease-in-out;
+        }
+        .bg-pattern .circle:nth-child(1) {
+            width: 500px; height: 500px; background: #ef4444;
+            top: -15%; left: -10%;
+        }
+        .bg-pattern .circle:nth-child(2) {
+            width: 400px; height: 400px; background: #f59e0b;
+            bottom: -20%; right: -5%; animation-delay: -7s;
+        }
+        .bg-pattern .circle:nth-child(3) {
+            width: 350px; height: 350px; background: #dc2626;
+            top: 50%; left: 50%; transform: translate(-50%, -50%);
+            animation-delay: -14s;
+        }
+        @keyframes floatBg {
+            0%, 100% { transform: translate(0, 0) scale(1); }
+            25% { transform: translate(30px, -40px) scale(1.05); }
+            50% { transform: translate(-20px, 20px) scale(0.95); }
+            75% { transform: translate(40px, 30px) scale(1.02); }
+        }
+        .bg-grid {
+            position: fixed; inset: 0; z-index: 1;
+            background-image:
+                linear-gradient(rgba(255,255,255,0.02) 1px, transparent 1px),
+                linear-gradient(90deg, rgba(255,255,255,0.02) 1px, transparent 1px);
+            background-size: 60px 60px;
+        }
+
+        /* Card */
+        .delete-wrapper {
+            position: relative; z-index: 10;
+            width: 100%; max-width: 440px; padding: 16px;
+        }
+        .delete-card {
+            background: rgba(255, 255, 255, 0.03);
+            backdrop-filter: blur(40px);
+            -webkit-backdrop-filter: blur(40px);
+            border: 1px solid rgba(239, 68, 68, 0.15);
+            border-radius: 20px;
+            padding: 40px 36px 36px;
+            box-shadow: 0 24px 48px rgba(0, 0, 0, 0.3),
+                        0 0 0 1px rgba(255, 255, 255, 0.05) inset;
             text-align: center;
-            border: none;
+            animation: cardAppear 0.5s cubic-bezier(0.16, 1, 0.3, 1);
         }
-        .delete-dialog h2 {
-            color: #e06363; margin-top:0; font-size:1.27em;
-            font-weight: 800; letter-spacing:-.02em;
+        @keyframes cardAppear {
+            from { opacity: 0; transform: translateY(20px) scale(0.96); }
+            to { opacity: 1; transform: translateY(0) scale(1); }
         }
-        .delete-dialog p {
-            color: #336;
-            font-size: 1.09em;
-            margin-bottom: 2.1em;
+
+        /* Warning icon */
+        .delete-icon {
+            width: 72px; height: 72px;
+            background: rgba(239, 68, 68, 0.1);
+            border: 2px solid rgba(239, 68, 68, 0.2);
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin: 0 auto 24px;
+            animation: pulseWarn 2s infinite;
         }
-        .delete-dialog .danger-btn {
-            padding: .82em 0;
+        .delete-icon i {
+            font-size: 1.8em;
+            color: #ef4444;
+        }
+        @keyframes pulseWarn {
+            0%, 100% { box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.2); }
+            50% { box-shadow: 0 0 0 12px rgba(239, 68, 68, 0); }
+        }
+
+        /* Text */
+        .delete-title {
+            font-size: 1.3em;
+            font-weight: 700;
+            color: #fff;
+            margin-bottom: 12px;
+            letter-spacing: -0.02em;
+        }
+        .delete-subtitle {
+            font-size: 0.9em;
+            color: #94a3b8;
+            line-height: 1.6;
+            margin-bottom: 8px;
+        }
+
+        /* Task info box */
+        .delete-task-info {
+            background: rgba(255, 255, 255, 0.04);
+            border: 1px solid rgba(255, 255, 255, 0.08);
+            border-radius: 12px;
+            padding: 16px;
+            margin: 20px 0 28px;
+        }
+        .delete-task-id {
+            font-size: 0.78em;
+            font-weight: 600;
+            color: #64748b;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            margin-bottom: 6px;
+        }
+        .delete-task-name {
+            font-size: 1em;
+            font-weight: 600;
+            color: #e2e8f0;
+        }
+
+        /* Warning text */
+        .delete-warning {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+            font-size: 0.78em;
+            color: #f59e0b;
+            font-weight: 500;
+            margin-bottom: 24px;
+        }
+        .delete-warning i {
+            font-size: 0.9em;
+        }
+
+        /* Buttons */
+        .delete-actions {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+        .btn-delete {
             width: 100%;
-            background: linear-gradient(90deg,#f06a77 36%,#cc1d40 90%);
-            color: #fff; border: none; border-radius: 8px;
-            font-size: 1.1em; font-weight: 700; cursor: pointer;
-            box-shadow:0 4px 14px -2px #f06a7733;
-            transition: background .14s;
+            padding: 14px 24px;
+            background: linear-gradient(135deg, #dc2626, #ef4444);
+            color: #fff;
+            border: none;
+            border-radius: 10px;
+            font-family: inherit;
+            font-size: 0.95em;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+            position: relative;
+            overflow: hidden;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
         }
-        .delete-dialog .danger-btn:hover {
-            background:linear-gradient(90deg,#cc1d40 25%,#f06a77 80%);
+        .btn-delete::before {
+            content: '';
+            position: absolute; inset: 0;
+            background: linear-gradient(135deg, transparent, rgba(255,255,255,0.1));
+            opacity: 0;
+            transition: opacity 0.25s;
         }
-        .delete-dialog .cancel-link {
-            display:block; margin:1.5em auto 0 auto; color:#20a3a5;
-            text-decoration:none; font-weight:600; font-size:1em;
-            border-radius:8px; transition:background .11s;
-            width:90%; padding:.8em 0;
+        .btn-delete:hover {
+            transform: translateY(-1px);
+            box-shadow: 0 8px 24px rgba(239, 68, 68, 0.4);
         }
-        .delete-dialog .cancel-link:hover {background:#f2fcfa;}
-        @media(max-width:650px){
-            .delete-dialog{padding:1.1em .41em 1.02em .41em;}
-            .delete-dialog p{font-size:.99em;}
+        .btn-delete:hover::before { opacity: 1; }
+        .btn-delete:active { transform: translateY(0); }
+
+        .btn-cancel {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+            width: 100%;
+            padding: 14px 24px;
+            background: rgba(255, 255, 255, 0.05);
+            color: #94a3b8;
+            border: 1px solid rgba(255, 255, 255, 0.08);
+            border-radius: 10px;
+            font-family: inherit;
+            font-size: 0.95em;
+            font-weight: 600;
+            text-decoration: none;
+            transition: all 0.2s;
+        }
+        .btn-cancel:hover {
+            background: rgba(255, 255, 255, 0.08);
+            color: #e2e8f0;
+            border-color: rgba(255, 255, 255, 0.15);
+        }
+
+        /* Countdown */
+        .countdown-text {
+            font-size: 0.78em;
+            color: #475569;
+            margin-top: 16px;
+            transition: color 0.3s;
+        }
+        .countdown-text.ready {
+            color: #ef4444;
+        }
+
+        /* ===== RESPONSIVE ===== */
+        @media (max-width: 480px) {
+            .delete-card {
+                padding: 28px 22px 24px;
+                border-radius: 16px;
+            }
+            .delete-icon {
+                width: 60px; height: 60px;
+            }
+            .delete-icon i {
+                font-size: 1.4em;
+            }
+            .delete-title {
+                font-size: 1.1em;
+            }
         }
     </style>
 </head>
 <body>
-    <form method="post" class="delete-dialog">
-        {% csrf_token %}
-        <h2>Удалить задание для объявления №{{ object.ad_id }}?</h2>
-        <p>Это действие необратимо.<br>После удаления восстановить задание будет невозможно.</p>
-        <button type="submit" class="danger-btn">Да, удалить</button>
-        <a href="{% url 'task-list' %}" class="cancel-link">Отмена</a>
-    </form>
+    <!-- BG -->
+    <div class="bg-pattern">
+        <div class="circle"></div>
+        <div class="circle"></div>
+        <div class="circle"></div>
+    </div>
+    <div class="bg-grid"></div>
+
+    <!-- Card -->
+    <div class="delete-wrapper">
+        <div class="delete-card">
+            <div class="delete-icon">
+                <i class="fas fa-trash-alt"></i>
+            </div>
+
+            <h2 class="delete-title">Удалить задачу?</h2>
+            <p class="delete-subtitle">
+                Эта задача будет удалена навсегда вместе со всей историей логов.
+            </p>
+
+            <div class="delete-task-info">
+                <div class="delete-task-id">Объявление #{{ object.ad_id }}</div>
+                <div class="delete-task-name">
+                    {% if object.title and object.title != "Название не найдено" %}
+                        {{ object.title|truncatechars:60 }}
+                    {% else %}
+                        Задача #{{ object.id }}
+                    {% endif %}
+                </div>
+            </div>
+
+            <div class="delete-warning">
+                <i class="fas fa-exclamation-triangle"></i>
+                Это действие нельзя отменить
+            </div>
+
+            <form method="post">
+                {% csrf_token %}
+                <div class="delete-actions">
+                    <button type="submit" class="btn-delete" id="deleteBtn" disabled>
+                        <i class="fas fa-trash-alt"></i>
+                        <span id="btnText">Подождите...</span>
+                    </button>
+                    <a href="{% url 'task-list' %}" class="btn-cancel">
+                        <i class="fas fa-arrow-left"></i>
+                        Нет, вернуться назад
+                    </a>
+                </div>
+            </form>
+
+            <div class="countdown-text" id="countdown">
+                Кнопка станет активной через <strong id="timer">3</strong> сек.
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Countdown before enabling delete button
+        var seconds = 3;
+        var btn = document.getElementById('deleteBtn');
+        var btnText = document.getElementById('btnText');
+        var timerEl = document.getElementById('timer');
+        var countdownEl = document.getElementById('countdown');
+
+        var interval = setInterval(function() {
+            seconds--;
+            timerEl.textContent = seconds;
+
+            if (seconds <= 0) {
+                clearInterval(interval);
+                btn.disabled = false;
+                btnText.textContent = 'Да, удалить навсегда';
+                countdownEl.textContent = 'Кнопка активна';
+                countdownEl.classList.add('ready');
+            }
+        }, 1000);
+
+        // Keyboard: Escape to go back
+        document.addEventListener('keydown', function(e) {
+            if (e.key === 'Escape') {
+                window.location.href = "{% url 'task-list' %}";
+            }
+        });
+    </script>
 </body>
 </html>

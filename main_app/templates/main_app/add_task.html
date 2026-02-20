@@ -1,209 +1,830 @@
-
-
 {% extends 'base.html' %}
 {% load form_filters %}
 {% load static %}
 
 {% block title %}
-    {% if object %}Редактировать задание{% else %}Добавить задание{% endif %} - {{ block.super }}
+    {% if object %}Редактировать задание{% else %}Добавить задание{% endif %} — Bidder PRO
 {% endblock %}
+
+{% block breadcrumb %}
+    {% if object %}Редактирование задания #{{ object.id }}{% else %}Новая задача{% endif %}
+{% endblock %}
+
 {% block page_title %}
-    {% if object %}Редактировать задание #{{ object.id }}{% else %}Новое задание для биддера{% endif %}
+    {% if object %}Редактировать задание{% else %}Новая задача{% endif %}
+{% endblock %}
+
+{% block page_subtitle %}
+    {% if object %}Изменение параметров задания #{{ object.id }}{% else %}Настройте параметры биддинга для объявления{% endif %}
+{% endblock %}
+
+{% block content_actions %}
+    <a href="{% url 'task-list' %}" class="btn btn-secondary">
+        <i class="fas fa-arrow-left"></i> Назад
+    </a>
 {% endblock %}
 
 {% block content %}
-<div class="form-wrapper" style="background:#fff;max-width:600px;margin:2.3em auto 2em;border-radius:18px;padding:2.7em 2.3em 2.3em 2.3em;box-shadow:0 9px 42px #2240800f;">
-<form method="post" class="form-styled">
-    {% csrf_token %}
+<div class="task-form-card">
+    <form method="post" class="task-form" novalidate>
+        {% csrf_token %}
 
-    {% if form.non_field_errors %}
-        <div class="form-errors">
-            {% for error in form.non_field_errors %}
-                <span>{{ error }}</span>
-            {% endfor %}
-        </div>
-    {% endif %}
-
-    <!-- Современный селект (авито-аккаунт) -->
-    <div class="form-group">
-        <label for="{{ form.avito_account.id_for_label }}" style="font-weight:600;font-size:1.09em;color:#21477c;display:flex;align-items:center;gap:.6em;">
-            <span style="color:#2ca7d2;font-size:1.25em;"><i class="fab fa-avianex"></i></span>
-            Аккаунт Avito
-        </label>
-        <div style="position:relative;">
-            <span style="position:absolute;top:55%;left:11px;transform:translateY(-50%);color:#1ebe67;font-size:1.13em;"><i class="fas fa-user"></i></span>
-            {{ form.avito_account|add_class:"modern-select" }}
-        </div>
-        {% if form.avito_account.errors %}
-            <div class="field-errors" style="margin-top:.23em;">{{ form.avito_account.errors|join:", " }}</div>
+        <!-- Non-field errors -->
+        {% if form.non_field_errors %}
+            <div class="alert alert-danger">
+                <i class="fas fa-exclamation-circle"></i>
+                {% for error in form.non_field_errors %}
+                    {{ error }}
+                {% endfor %}
+            </div>
         {% endif %}
-    </div>
 
-    <!-- ID Объявления -->
-    <div class="form-group">
-        <label for="{{ form.ad_id.id_for_label }}">{{ form.ad_id.label }}</label>
-        {{ form.ad_id|add_class:"nice-input" }}
-        {% if form.ad_id.errors %}<div class="field-errors">{{ form.ad_id.errors }}</div>{% endif %}
-    </div>
-
-    <!-- URL для поиска -->
-    <div class="form-group">
-        <label for="{{ form.search_url.id_for_label }}">{{ form.search_url.label }}</label>
-        {{ form.search_url|add_class:"nice-input" }}
-        {% if form.search_url.errors %}<div class="field-errors">{{ form.search_url.errors }}</div>{% endif %}
-    </div>
-
-    <!-- Ценовой диапазон -->
-    <div class="form-row" style="display:flex;gap:1.4em;">
-        <div class="form-group" style="flex:1;">
-            <label for="{{ form.min_price.id_for_label }}">{{ form.min_price.label }}</label>
-            {{ form.min_price|add_class:"nice-input" }}
-            {% if form.min_price.errors %}<div class="field-errors">{{ form.min_price.errors }}</div>{% endif %}
-        </div>
-        <div class="form-group" style="flex:1;">
-            <label for="{{ form.max_price.id_for_label }}">{{ form.max_price.label }}</label>
-            {{ form.max_price|add_class:"nice-input" }}
-            {% if form.max_price.errors %}<div class="field-errors">{{ form.max_price.errors }}</div>{% endif %}
-        </div>
-    </div>
-
-    <!-- Целевой диапазон позиций -->
-    <div class="form-group">
-        <label>Целевой диапазон позиций</label>
-        <div id="position-slider" class="position-slider"></div>
-        <div style="display:none;">
-            {{ form.target_position_min }}
-            {{ form.target_position_max }}
-        </div>
-        {% if form.target_position_min.errors %}<div class="field-errors">{{ form.target_position_min.errors }}</div>{% endif %}
-        {% if form.target_position_max.errors %}<div class="field-errors">{{ form.target_position_max.errors }}</div>{% endif %}
-    </div>
-
-    <!-- Шаг ставки -->
-    <div class="form-group">
-        <label for="{{ form.bid_step.id_for_label }}">{{ form.bid_step.label }}</label>
-        {{ form.bid_step|add_class:"nice-input" }}
-        {% if form.bid_step.errors %}<div class="field-errors">{{ form.bid_step.errors }}</div>{% endif %}
-    </div>
-
-    <!-- Современный блок расписания -->
-    <div class="form-group">
-        <label style="font-weight:600;color:#21477c;display:flex;align-items:center;gap:.7em;">
-            <span style="color:#38a3a5;"><i class="fas fa-clock"></i></span>
-            Расписание работы биддера
-        </label>
-        <div id="schedule-container"></div>
-        <button type="button" id="add-schedule-interval" class="btn-add-interval"
-            style="margin-top:.8em;display:inline-flex;align-items:center;gap:.5em;padding:.6em 1.4em;background:#eaf6fd;border-radius:7px;border:1px solid #c8e7f6;color:#24a384;font-weight:600;transition:background .12s;">
-            <i class="fas fa-plus"></i> Добавить интервал
-        </button>
-        <div style="display:none;">
-            <textarea name="schedule" id="id_schedule_data">{% if form.instance.schedule %}{{ form.instance.schedule }}{% else %}[]{% endif %}</textarea>
-        </div>
-        {% if form.schedule.errors %}<div class="field-errors">{{ form.schedule.errors }}</div>{% endif %}
-    </div>
-    <div id="schedule-template" style="display:none;">
-        <div class="schedule-interval-row" style="background:#f8fafc;border-radius:10px;padding:11px 13px 8px 13px;display:flex;flex-direction:column;gap:.5em;margin-bottom:.6em;box-shadow:0 1.5px 12px #54c3d105;">
-            <div class="time-inputs" style="display:flex;gap:1em;align-items:center;margin-bottom:.3em;">
-                <input type="time" class="time-input start-time nice-input" value="09:00">
-                <span style="color:#bbb;font-weight:800;">–</span>
-                <input type="time" class="time-input end-time nice-input" value="23:00">
+        <!-- === SECTION: Основное === -->
+        <div class="form-section">
+            <div class="form-section-header">
+                <div class="form-section-icon blue">
+                    <i class="fas fa-store"></i>
+                </div>
+                <div>
+                    <div class="form-section-title">Основные настройки</div>
+                    <div class="form-section-desc">Выберите аккаунт и укажите объявление</div>
+                </div>
             </div>
-            <div class="day-selectors modern-days" style="margin-top:.2em;margin-bottom:.3em;">
-                <label><input type="checkbox" value="1"> Пн</label>
-                <label><input type="checkbox" value="2"> Вт</label>
-                <label><input type="checkbox" value="3"> Ср</label>
-                <label><input type="checkbox" value="4"> Чт</label>
-                <label><input type="checkbox" value="5"> Пт</label>
-                <label><input type="checkbox" value="6" class="weekend"> Сб</label>
-                <label><input type="checkbox" value="7" class="weekend"> Вс</label>
+
+            <div class="form-section-body">
+                <!-- Аккаунт -->
+                <div class="fg">
+                    <label class="fg-label">
+                        <i class="fas fa-user-circle"></i> Аккаунт Avito
+                    </label>
+                    <div class="fg-input-wrap">
+                        {{ form.avito_account|add_class:"fg-select" }}
+                    </div>
+                    {% if form.avito_account.errors %}
+                        <div class="fg-error">
+                            <i class="fas fa-exclamation-circle"></i>
+                            {{ form.avito_account.errors|join:", " }}
+                        </div>
+                    {% endif %}
+                </div>
+
+                <!-- ID Объявления -->
+                <div class="fg">
+                    <label class="fg-label" for="{{ form.ad_id.id_for_label }}">
+                        <i class="fas fa-hashtag"></i> {{ form.ad_id.label }}
+                    </label>
+                    <div class="fg-input-wrap">
+                        {{ form.ad_id|add_class:"fg-input" }}
+                    </div>
+                    {% if form.ad_id.errors %}
+                        <div class="fg-error"><i class="fas fa-exclamation-circle"></i> {{ form.ad_id.errors }}</div>
+                    {% endif %}
+                </div>
+
+                <!-- URL поиска -->
+                <div class="fg">
+                    <label class="fg-label" for="{{ form.search_url.id_for_label }}">
+                        <i class="fas fa-link"></i> {{ form.search_url.label }}
+                    </label>
+                    <div class="fg-input-wrap">
+                        {{ form.search_url|add_class:"fg-input" }}
+                    </div>
+                    {% if form.search_url.errors %}
+                        <div class="fg-error"><i class="fas fa-exclamation-circle"></i> {{ form.search_url.errors }}</div>
+                    {% endif %}
+                </div>
             </div>
-            <button type="button" class="btn-remove-interval" style="margin-left:auto;background:none;border:none;color:#b36665;font-size:1.50em;line-height:1;cursor:pointer;transition:.1s color;">
-                &times;
+        </div>
+
+        <!-- === SECTION: Ценовой диапазон === -->
+        <div class="form-section">
+            <div class="form-section-header">
+                <div class="form-section-icon green">
+                    <i class="fas fa-ruble-sign"></i>
+                </div>
+                <div>
+                    <div class="form-section-title">Ценовой диапазон</div>
+                    <div class="form-section-desc">Минимальная и максимальная ставка</div>
+                </div>
+            </div>
+
+            <div class="form-section-body">
+                <div class="fg-row">
+                    <div class="fg">
+                        <label class="fg-label" for="{{ form.min_price.id_for_label }}">
+                            <i class="fas fa-arrow-down"></i> {{ form.min_price.label }}
+                        </label>
+                        <div class="fg-input-wrap fg-input-icon-right">
+                            {{ form.min_price|add_class:"fg-input" }}
+                            <span class="fg-suffix">₽</span>
+                        </div>
+                        {% if form.min_price.errors %}
+                            <div class="fg-error"><i class="fas fa-exclamation-circle"></i> {{ form.min_price.errors }}</div>
+                        {% endif %}
+                    </div>
+                    <div class="fg">
+                        <label class="fg-label" for="{{ form.max_price.id_for_label }}">
+                            <i class="fas fa-arrow-up"></i> {{ form.max_price.label }}
+                        </label>
+                        <div class="fg-input-wrap fg-input-icon-right">
+                            {{ form.max_price|add_class:"fg-input" }}
+                            <span class="fg-suffix">₽</span>
+                        </div>
+                        {% if form.max_price.errors %}
+                            <div class="fg-error"><i class="fas fa-exclamation-circle"></i> {{ form.max_price.errors }}</div>
+                        {% endif %}
+                    </div>
+                </div>
+
+                <!-- Шаг ставки -->
+                <div class="fg">
+                    <label class="fg-label" for="{{ form.bid_step.id_for_label }}">
+                        <i class="fas fa-shoe-prints"></i> {{ form.bid_step.label }}
+                    </label>
+                    <div class="fg-input-wrap fg-input-icon-right">
+                        {{ form.bid_step|add_class:"fg-input" }}
+                        <span class="fg-suffix">₽</span>
+                    </div>
+                    {% if form.bid_step.errors %}
+                        <div class="fg-error"><i class="fas fa-exclamation-circle"></i> {{ form.bid_step.errors }}</div>
+                    {% endif %}
+                </div>
+
+                <!-- Дневной лимит -->
+                <div class="fg">
+                    <label class="fg-label" for="{{ form.daily_budget.id_for_label }}">
+                        <i class="fas fa-wallet"></i> Дневной лимит трат
+                    </label>
+                    <div class="fg-input-wrap fg-input-icon-right">
+                        {{ form.daily_budget|add_class:"fg-input" }}
+                        <span class="fg-suffix">₽</span>
+                    </div>
+                    <div class="fg-hint">
+                        <i class="fas fa-info-circle"></i> 0 = без лимита
+                    </div>
+                    {% if form.daily_budget.errors %}
+                        <div class="fg-error"><i class="fas fa-exclamation-circle"></i> {{ form.daily_budget.errors }}</div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+
+        <!-- === SECTION: Позиции === -->
+        <div class="form-section">
+            <div class="form-section-header">
+                <div class="form-section-icon purple">
+                    <i class="fas fa-crosshairs"></i>
+                </div>
+                <div>
+                    <div class="form-section-title">Целевая позиция</div>
+                    <div class="form-section-desc">Диапазон позиций в поисковой выдаче</div>
+                </div>
+            </div>
+
+            <div class="form-section-body">
+                <div class="fg">
+                    <div class="slider-display">
+                        <span class="slider-label">Позиция от</span>
+                        <span class="slider-value" id="slider-val-min">1</span>
+                        <span class="slider-sep">—</span>
+                        <span class="slider-label">до</span>
+                        <span class="slider-value" id="slider-val-max">5</span>
+                    </div>
+                    <div id="position-slider" class="position-slider"></div>
+                    <div style="display:none;">
+                        {{ form.target_position_min }}
+                        {{ form.target_position_max }}
+                    </div>
+                    {% if form.target_position_min.errors %}
+                        <div class="fg-error"><i class="fas fa-exclamation-circle"></i> {{ form.target_position_min.errors }}</div>
+                    {% endif %}
+                    {% if form.target_position_max.errors %}
+                        <div class="fg-error"><i class="fas fa-exclamation-circle"></i> {{ form.target_position_max.errors }}</div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+
+        <!-- === SECTION: Расписание === -->
+        <div class="form-section">
+            <div class="form-section-header">
+                <div class="form-section-icon yellow">
+                    <i class="fas fa-calendar-alt"></i>
+                </div>
+                <div>
+                    <div class="form-section-title">Расписание</div>
+                    <div class="form-section-desc">Когда биддер должен работать</div>
+                </div>
+            </div>
+
+            <div class="form-section-body">
+                <div id="schedule-container"></div>
+                <button type="button" id="add-schedule-interval" class="btn-add-schedule">
+                    <i class="fas fa-plus"></i> Добавить интервал
+                </button>
+                <div style="display:none;">
+                    <textarea name="schedule" id="id_schedule_data">{% if form.instance.schedule %}{{ form.instance.schedule }}{% else %}[]{% endif %}</textarea>
+                </div>
+                {% if form.schedule.errors %}
+                    <div class="fg-error"><i class="fas fa-exclamation-circle"></i> {{ form.schedule.errors }}</div>
+                {% endif %}
+            </div>
+        </div>
+
+        <!-- Schedule template (hidden) -->
+        <div id="schedule-template" style="display:none;">
+            <div class="schedule-row">
+                <div class="schedule-row-header">
+                    <span class="schedule-row-title"><i class="fas fa-clock"></i> Интервал</span>
+                    <button type="button" class="btn-remove-interval" title="Удалить">
+                        <i class="fas fa-trash-alt"></i>
+                    </button>
+                </div>
+                <div class="schedule-time-row">
+                    <div class="schedule-time-field">
+                        <label>Начало</label>
+                        <input type="time" class="time-input start-time fg-input" value="09:00">
+                    </div>
+                    <div class="schedule-time-sep">
+                        <i class="fas fa-arrow-right"></i>
+                    </div>
+                    <div class="schedule-time-field">
+                        <label>Конец</label>
+                        <input type="time" class="time-input end-time fg-input" value="23:00">
+                    </div>
+                </div>
+                <div class="schedule-days">
+                    <label class="day-chip"><input type="checkbox" value="1"><span>Пн</span></label>
+                    <label class="day-chip"><input type="checkbox" value="2"><span>Вт</span></label>
+                    <label class="day-chip"><input type="checkbox" value="3"><span>Ср</span></label>
+                    <label class="day-chip"><input type="checkbox" value="4"><span>Чт</span></label>
+                    <label class="day-chip"><input type="checkbox" value="5"><span>Пт</span></label>
+                    <label class="day-chip weekend"><input type="checkbox" value="6"><span>Сб</span></label>
+                    <label class="day-chip weekend"><input type="checkbox" value="7"><span>Вс</span></label>
+                </div>
+            </div>
+        </div>
+
+        <!-- === SECTION: Дополнительно === -->
+        <div class="form-section">
+            <div class="form-section-header">
+                <div class="form-section-icon gray">
+                    <i class="fas fa-sliders-h"></i>
+                </div>
+                <div>
+                    <div class="form-section-title">Дополнительно</div>
+                    <div class="form-section-desc">Переключатели и доп. настройки</div>
+                </div>
+            </div>
+
+            <div class="form-section-body">
+                <!-- Toggle: freeze -->
+                <div class="toggle-row">
+                    <label class="modern-toggle">
+                        {{ form.freeze_price_if_not_found }}
+                        <span class="toggle-track"><span class="toggle-thumb"></span></span>
+                    </label>
+                    <div class="toggle-info">
+                        <span class="toggle-label">{{ form.freeze_price_if_not_found.label }}</span>
+                        <span class="toggle-hint">{{ form.freeze_price_if_not_found.help_text }}</span>
+                    </div>
+                </div>
+
+                <!-- Toggle: active -->
+                <div class="toggle-row">
+                    <label class="modern-toggle">
+                        {{ form.is_active }}
+                        <span class="toggle-track"><span class="toggle-thumb"></span></span>
+                    </label>
+                    <div class="toggle-info">
+                        <span class="toggle-label">{{ form.is_active.label }}</span>
+                        <span class="toggle-hint">Включить или выключить биддер для этой задачи</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- === SUBMIT === -->
+        <div class="form-submit-section">
+            <a href="{% url 'task-list' %}" class="btn btn-secondary btn-lg">
+                <i class="fas fa-times"></i> Отмена
+            </a>
+            <button type="submit" class="btn btn-primary btn-lg">
+                <i class="fas {% if object %}fa-save{% else %}fa-plus{% endif %}"></i>
+                {% if object %}Сохранить изменения{% else %}Создать задачу{% endif %}
             </button>
         </div>
-    </div>
-
-    <!-- Красивый тумблер “выход из 50-го места” -->
-    <div class="form-group form-group-toggle" style="margin-top:1.18em;display:flex;align-items:center;gap:1.1em;">
-        <label class="switch">
-            {{ form.freeze_price_if_not_found }}
-            <span class="slider round"></span>
-        </label>
-        <span style="font-weight:500;">{{ form.freeze_price_if_not_found.label }}
-            <span class="help-tooltip" title="{{ form.freeze_price_if_not_found.help_text }}"
-                  style="padding:.5px 7px .5px 7px;background:#e9f6ff;color:#1dc3a6;border-radius:5px;margin-left:.38em;cursor:help;">?</span>
-        </span>
-        {% if form.freeze_price_if_not_found.errors %}
-            <div class="field-errors" style="margin-left:1.1em;">{{ form.freeze_price_if_not_found.errors }}</div>
-        {% endif %}
-    </div>
-
-    <!-- Дневный лимит трат -->
-<div class="form-group">
-    <label for="{{ form.daily_budget.id_for_label }}">Дневный лимит трат (₽)</label>
-    {{ form.daily_budget }}
-    <small class="text-muted d-block">
-        0 = без лимита. Поле обязательно для заполнения.
-    </small>
-    {% if form.daily_budget.errors %}
-        <div class="field-errors">{{ form.daily_budget.errors }}</div>
-    {% endif %}
-</div>
-
-<!-- JS-защита от стирания поля -->
-<script>
-document.addEventListener('DOMContentLoaded', function() {
-    const budgetInput = document.getElementById('id_daily_budget');
-    budgetInput.addEventListener('input', function() {
-        if (this.value === '') {
-            this.value = '0';
-        }
-    });
-    budgetInput.addEventListener('blur', function() {
-        if (this.value === '' || isNaN(this.value)) {
-            this.value = '0';
-        }
-    });
-});
-</script>
-
-    <!-- Современный тумблер “Активен” -->
-    <div class="form-group form-group-toggle" style="display:flex;align-items:center;gap:1.1em;">
-        <label class="switch">
-            {{ form.is_active }}
-            <span class="slider round"></span>
-        </label>
-        <span style="font-weight:500;">{{ form.is_active.label }}</span>
-        {% if form.is_active.errors %}
-            <div class="field-errors" style="margin-left:1.1em;">{{ form.is_active.errors }}</div>
-        {% endif %}
-    </div>
-
-    <div class="form-actions" style="margin-top:2em;">
-        <button type="submit" class="btn btn-primary" style="width:100%;font-size:1.13em;">
-            {% if object %}Сохранить изменения{% else %}Добавить задание{% endif %}
-        </button>
-    </div>
-</form>
+    </form>
 </div>
 {% endblock %}
 
+{% block extra_head %}
+<style>
+    /* ===== FORM CARD ===== */
+    .task-form-card {
+        max-width: 680px;
+        margin: 0 auto;
+    }
+
+    /* ===== FORM SECTIONS ===== */
+    .form-section {
+        background: #fff;
+        border: 1px solid var(--gray-200);
+        border-radius: var(--radius-md);
+        margin-bottom: 20px;
+        overflow: hidden;
+        box-shadow: var(--shadow-sm);
+        transition: var(--transition);
+    }
+    .form-section:hover {
+        box-shadow: var(--shadow-md);
+    }
+    .form-section-header {
+        display: flex;
+        align-items: center;
+        gap: 14px;
+        padding: 20px 24px;
+        border-bottom: 1px solid var(--gray-100);
+        background: var(--gray-50);
+    }
+    .form-section-icon {
+        width: 40px; height: 40px;
+        border-radius: var(--radius-sm);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 1em;
+        flex-shrink: 0;
+    }
+    .form-section-icon.blue { background: #dbeafe; color: #3b82f6; }
+    .form-section-icon.green { background: #d1fae5; color: #10b981; }
+    .form-section-icon.purple { background: #eef2ff; color: #4f46e5; }
+    .form-section-icon.yellow { background: #fef3c7; color: #f59e0b; }
+    .form-section-icon.gray { background: var(--gray-100); color: var(--gray-500); }
+
+    .form-section-title {
+        font-weight: 600;
+        font-size: 0.95em;
+        color: var(--gray-800);
+    }
+    .form-section-desc {
+        font-size: 0.8em;
+        color: var(--gray-500);
+        margin-top: 2px;
+    }
+    .form-section-body {
+        padding: 24px;
+    }
+
+    /* ===== FORM GROUPS ===== */
+    .fg {
+        margin-bottom: 20px;
+    }
+    .fg:last-child {
+        margin-bottom: 0;
+    }
+    .fg-label {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        font-size: 0.85em;
+        font-weight: 600;
+        color: var(--gray-700);
+        margin-bottom: 8px;
+    }
+    .fg-label i {
+        color: var(--gray-400);
+        width: 16px;
+        text-align: center;
+        font-size: 0.9em;
+    }
+    .fg-input-wrap {
+        position: relative;
+    }
+    .fg-input, .fg-select {
+        width: 100%;
+        padding: 11px 14px;
+        border: 1px solid var(--gray-300);
+        border-radius: var(--radius-sm);
+        font-family: inherit;
+        font-size: 0.9em;
+        color: var(--gray-800);
+        background: #fff;
+        transition: var(--transition);
+        outline: none;
+    }
+    .fg-input:focus, .fg-select:focus {
+        border-color: var(--primary);
+        box-shadow: 0 0 0 3px rgba(79,70,229,0.1);
+    }
+    .fg-input::placeholder {
+        color: var(--gray-400);
+    }
+    .fg-input-icon-right {
+        position: relative;
+    }
+    .fg-input-icon-right .fg-input {
+        padding-right: 44px;
+    }
+    .fg-suffix {
+        position: absolute;
+        right: 14px;
+        top: 50%;
+        transform: translateY(-50%);
+        font-size: 0.85em;
+        font-weight: 600;
+        color: var(--gray-400);
+        pointer-events: none;
+    }
+    .fg-row {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 16px;
+    }
+    .fg-error {
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        color: var(--danger);
+        font-size: 0.8em;
+        font-weight: 500;
+        margin-top: 6px;
+    }
+    .fg-error i {
+        flex-shrink: 0;
+    }
+    .fg-hint {
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        color: var(--gray-400);
+        font-size: 0.78em;
+        margin-top: 6px;
+    }
+
+    /* ===== SLIDER ===== */
+    .slider-display {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        margin-bottom: 16px;
+        justify-content: center;
+    }
+    .slider-label {
+        font-size: 0.85em;
+        color: var(--gray-500);
+    }
+    .slider-value {
+        background: var(--primary-bg);
+        color: var(--primary);
+        font-weight: 700;
+        font-size: 1.1em;
+        padding: 4px 14px;
+        border-radius: 8px;
+        min-width: 40px;
+        text-align: center;
+    }
+    .slider-sep {
+        color: var(--gray-300);
+        font-size: 1.2em;
+    }
+    .position-slider {
+        margin: 0 8px;
+    }
+    /* noUiSlider overrides */
+    .noUi-target {
+        background: var(--gray-200) !important;
+        border: none !important;
+        box-shadow: none !important;
+        height: 8px !important;
+        border-radius: 4px !important;
+    }
+    .noUi-connect {
+        background: linear-gradient(135deg, var(--primary), var(--primary-light)) !important;
+        border-radius: 4px !important;
+    }
+    .noUi-handle {
+        width: 24px !important;
+        height: 24px !important;
+        border-radius: 50% !important;
+        background: #fff !important;
+        border: 3px solid var(--primary) !important;
+        box-shadow: 0 2px 8px rgba(79,70,229,0.2) !important;
+        cursor: grab !important;
+        top: -9px !important;
+        right: -12px !important;
+    }
+    .noUi-handle::before, .noUi-handle::after {
+        display: none !important;
+    }
+    .noUi-handle:active {
+        cursor: grabbing !important;
+        box-shadow: 0 2px 12px rgba(79,70,229,0.35) !important;
+    }
+
+    /* ===== SCHEDULE ===== */
+    .schedule-row {
+        background: var(--gray-50);
+        border: 1px solid var(--gray-200);
+        border-radius: var(--radius-sm);
+        padding: 16px;
+        margin-bottom: 12px;
+        transition: var(--transition);
+    }
+    .schedule-row:hover {
+        border-color: var(--gray-300);
+    }
+    .schedule-row-header {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        margin-bottom: 12px;
+    }
+    .schedule-row-title {
+        font-size: 0.82em;
+        font-weight: 600;
+        color: var(--gray-500);
+        display: flex;
+        align-items: center;
+        gap: 6px;
+    }
+    .btn-remove-interval {
+        width: 32px; height: 32px;
+        border-radius: var(--radius-sm);
+        border: none;
+        background: transparent;
+        color: var(--gray-400);
+        cursor: pointer;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 0.85em;
+        transition: var(--transition);
+    }
+    .btn-remove-interval:hover {
+        background: var(--danger-bg);
+        color: var(--danger);
+    }
+    .schedule-time-row {
+        display: flex;
+        align-items: flex-end;
+        gap: 12px;
+        margin-bottom: 14px;
+    }
+    .schedule-time-field {
+        flex: 1;
+    }
+    .schedule-time-field label {
+        display: block;
+        font-size: 0.75em;
+        font-weight: 600;
+        color: var(--gray-400);
+        margin-bottom: 4px;
+        text-transform: uppercase;
+        letter-spacing: 0.05em;
+    }
+    .schedule-time-sep {
+        color: var(--gray-300);
+        padding-bottom: 10px;
+        font-size: 0.85em;
+    }
+
+    /* Day chips */
+    .schedule-days {
+        display: flex;
+        gap: 6px;
+        flex-wrap: wrap;
+    }
+    .day-chip {
+        cursor: pointer;
+        user-select: none;
+    }
+    .day-chip input {
+        display: none;
+    }
+    .day-chip span {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        width: 40px; height: 36px;
+        border-radius: var(--radius-sm);
+        font-size: 0.8em;
+        font-weight: 600;
+        color: var(--gray-500);
+        background: #fff;
+        border: 1px solid var(--gray-200);
+        transition: var(--transition);
+    }
+    .day-chip:hover span {
+        border-color: var(--primary-light);
+        color: var(--primary);
+    }
+    .day-chip input:checked + span {
+        background: var(--primary);
+        color: #fff;
+        border-color: var(--primary);
+        box-shadow: 0 2px 8px rgba(79,70,229,0.2);
+    }
+    .day-chip.weekend input:checked + span {
+        background: #f59e0b;
+        border-color: #f59e0b;
+        box-shadow: 0 2px 8px rgba(245,158,11,0.2);
+    }
+    .btn-add-schedule {
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        padding: 10px 18px;
+        background: var(--primary-bg);
+        color: var(--primary);
+        border: 1px dashed var(--primary-light);
+        border-radius: var(--radius-sm);
+        font-family: inherit;
+        font-size: 0.85em;
+        font-weight: 600;
+        cursor: pointer;
+        transition: var(--transition);
+        width: 100%;
+        justify-content: center;
+    }
+    .btn-add-schedule:hover {
+        background: #ddd6fe;
+        border-color: var(--primary);
+    }
+
+    /* ===== TOGGLES ===== */
+    .toggle-row {
+        display: flex;
+        align-items: flex-start;
+        gap: 14px;
+        padding: 14px 0;
+        border-bottom: 1px solid var(--gray-100);
+    }
+    .toggle-row:last-child {
+        border-bottom: none;
+        padding-bottom: 0;
+    }
+    .toggle-row:first-child {
+        padding-top: 0;
+    }
+    .modern-toggle {
+        position: relative;
+        display: inline-flex;
+        cursor: pointer;
+        flex-shrink: 0;
+        margin-top: 2px;
+    }
+    .modern-toggle input {
+        position: absolute;
+        opacity: 0;
+        width: 0; height: 0;
+    }
+    .toggle-track {
+        width: 48px; height: 26px;
+        background: var(--gray-200);
+        border-radius: 26px;
+        display: flex;
+        align-items: center;
+        padding: 3px;
+        transition: var(--transition);
+    }
+    .toggle-thumb {
+        width: 20px; height: 20px;
+        background: #fff;
+        border-radius: 50%;
+        box-shadow: 0 1px 4px rgba(0,0,0,0.15);
+        transition: var(--transition);
+    }
+    .modern-toggle input:checked + .toggle-track {
+        background: linear-gradient(135deg, var(--primary), var(--primary-light));
+    }
+    .modern-toggle input:checked + .toggle-track .toggle-thumb {
+        transform: translateX(22px);
+    }
+    .toggle-info {
+        display: flex;
+        flex-direction: column;
+        gap: 2px;
+    }
+    .toggle-label {
+        font-weight: 600;
+        font-size: 0.9em;
+        color: var(--gray-800);
+    }
+    .toggle-hint {
+        font-size: 0.78em;
+        color: var(--gray-400);
+        line-height: 1.4;
+    }
+
+    /* ===== SUBMIT ===== */
+    .form-submit-section {
+        display: flex;
+        justify-content: flex-end;
+        gap: 12px;
+        margin-top: 8px;
+        padding-top: 24px;
+    }
+
+    /* ===== RESPONSIVE ===== */
+    @media (max-width: 768px) {
+        .task-form-card {
+            max-width: 100%;
+        }
+        .form-section-body {
+            padding: 16px;
+        }
+        .form-section-header {
+            padding: 16px;
+        }
+        .fg-row {
+            grid-template-columns: 1fr;
+        }
+        .schedule-days {
+            gap: 4px;
+        }
+        .day-chip span {
+            width: 36px; height: 32px;
+            font-size: 0.75em;
+        }
+        .form-submit-section {
+            flex-direction: column-reverse;
+        }
+        .form-submit-section .btn {
+            width: 100%;
+            justify-content: center;
+        }
+        .schedule-time-row {
+            flex-direction: column;
+            gap: 8px;
+        }
+        .schedule-time-sep {
+            display: none;
+        }
+    }
+
+    @media (max-width: 480px) {
+        .form-section-header {
+            padding: 12px;
+        }
+        .form-section-body {
+            padding: 12px;
+        }
+        .form-section-icon {
+            width: 34px; height: 34px;
+            font-size: 0.85em;
+        }
+    }
+</style>
+{% endblock %}
 
 {% block extra_js %}
 {{ block.super }}
 <script>
 document.addEventListener('DOMContentLoaded', function() {
-    const container = document.getElementById('schedule-container');
-    const addButton = document.getElementById('add-schedule-interval');
-    const scheduleTemplate = document.getElementById('schedule-template');
-    const scheduleTextarea = document.getElementById('id_schedule_data');
+    // ===== Position Slider =====
+    var sliderEl = document.getElementById('position-slider');
+    var minInput = document.getElementById('id_target_position_min');
+    var maxInput = document.getElementById('id_target_position_max');
+    var valMin = document.getElementById('slider-val-min');
+    var valMax = document.getElementById('slider-val-max');
+
+    if (sliderEl && typeof noUiSlider !== 'undefined') {
+        noUiSlider.create(sliderEl, {
+            start: [
+                parseInt(minInput.value) || 1,
+                parseInt(maxInput.value) || 5
+            ],
+            connect: true,
+            step: 1,
+            range: { min: 1, max: 50 },
+                        format: {
+                to: function(v) { return Math.round(v); },
+                from: function(v) { return parseInt(v); }
+            }
+        });
+
+        sliderEl.noUiSlider.on('update', function(values) {
+            minInput.value = values[0];
+            maxInput.value = values[1];
+            valMin.textContent = values[0];
+            valMax.textContent = values[1];
+        });
+    }
+
+    // ===== Schedule =====
+    var container = document.getElementById('schedule-container');
+    var addButton = document.getElementById('add-schedule-interval');
+    var scheduleTemplate = document.getElementById('schedule-template');
+    var scheduleTextarea = document.getElementById('id_schedule_data');
+    var intervalCount = 0;
+
     function updateScheduleJson() {
-        const intervals = [];
-        container.querySelectorAll('.schedule-interval-row').forEach(row => {
-            const days = [];
-            row.querySelectorAll('.day-selectors input:checked').forEach(checkbox => {
-                days.push(parseInt(checkbox.value, 10));
+        var intervals = [];
+        container.querySelectorAll('.schedule-row').forEach(function(row) {
+            var days = [];
+            row.querySelectorAll('.schedule-days input:checked').forEach(function(cb) {
+                days.push(parseInt(cb.value, 10));
             });
             if (days.length > 0) {
                 intervals.push({
@@ -215,90 +836,109 @@ document.addEventListener('DOMContentLoaded', function() {
         });
         scheduleTextarea.value = JSON.stringify(intervals, null, 2);
     }
-    function createIntervalRow(data = null) {
-        const newRow = scheduleTemplate.firstElementChild.cloneNode(true);
+
+    function createIntervalRow(data) {
+        intervalCount++;
+        var newRow = scheduleTemplate.firstElementChild.cloneNode(true);
+
+        // Set title number
+        var titleEl = newRow.querySelector('.schedule-row-title');
+        titleEl.innerHTML = '<i class="fas fa-clock"></i> Интервал ' + intervalCount;
+
         if (data) {
             newRow.querySelector('.start-time').value = data.startTime || data.start || '09:00';
             newRow.querySelector('.end-time').value = data.endTime || data.end || '23:00';
             if (data.days && data.days.length) {
-                data.days.forEach(day => {
-                    const checkbox = newRow.querySelector(`.day-selectors input[value="${day}"]`);
+                data.days.forEach(function(day) {
+                    var checkbox = newRow.querySelector('.schedule-days input[value="' + day + '"]');
                     if (checkbox) checkbox.checked = true;
                 });
             }
         }
-        newRow.addEventListener('change', updateScheduleJson);
-        newRow.querySelector('.btn-remove-interval').addEventListener('click', () => {
-            newRow.remove();
-            updateScheduleJson();
+
+        // Events
+        newRow.querySelectorAll('input').forEach(function(input) {
+            input.addEventListener('change', updateScheduleJson);
         });
+
+        newRow.querySelector('.btn-remove-interval').addEventListener('click', function() {
+            newRow.style.transition = 'opacity 0.2s, transform 0.2s';
+            newRow.style.opacity = '0';
+            newRow.style.transform = 'translateX(-10px)';
+            setTimeout(function() {
+                newRow.remove();
+                updateScheduleJson();
+                renumberIntervals();
+            }, 200);
+        });
+
+        // Animate in
+        newRow.style.opacity = '0';
+        newRow.style.transform = 'translateY(10px)';
         container.appendChild(newRow);
+        requestAnimationFrame(function() {
+            newRow.style.transition = 'opacity 0.3s, transform 0.3s';
+            newRow.style.opacity = '1';
+            newRow.style.transform = 'translateY(0)';
+        });
+
+        updateScheduleJson();
     }
+
+    function renumberIntervals() {
+        intervalCount = 0;
+        container.querySelectorAll('.schedule-row').forEach(function(row) {
+            intervalCount++;
+            var titleEl = row.querySelector('.schedule-row-title');
+            titleEl.innerHTML = '<i class="fas fa-clock"></i> Интервал ' + intervalCount;
+        });
+    }
+
     function loadInitialSchedule() {
         try {
-            const initialData = JSON.parse(scheduleTextarea.value);
-            if (Array.isArray(initialData)) {
-                initialData.forEach(data => createIntervalRow(data));
+            var initialData = JSON.parse(scheduleTextarea.value);
+            if (Array.isArray(initialData) && initialData.length > 0) {
+                initialData.forEach(function(data) {
+                    createIntervalRow(data);
+                });
             }
-        } catch (e) {/* ignore */}
+        } catch (e) {
+            // ignore
+        }
     }
-    addButton.addEventListener('click', () => createIntervalRow());
+
+    addButton.addEventListener('click', function() {
+        createIntervalRow(null);
+    });
+
     loadInitialSchedule();
+
+    // ===== Daily budget protection =====
+    var budgetInput = document.getElementById('id_daily_budget');
+    if (budgetInput) {
+        budgetInput.addEventListener('input', function() {
+            if (this.value === '') this.value = '0';
+        });
+        budgetInput.addEventListener('blur', function() {
+            if (this.value === '' || isNaN(this.value)) this.value = '0';
+        });
+    }
+
+    // ===== Form validation visual =====
+    document.querySelectorAll('.fg-input, .fg-select').forEach(function(input) {
+        input.addEventListener('focus', function() {
+            this.closest('.fg').classList.add('fg-focused');
+        });
+        input.addEventListener('blur', function() {
+            this.closest('.fg').classList.remove('fg-focused');
+        });
+    });
+
+    // ===== Smooth scroll to first error =====
+    var firstError = document.querySelector('.fg-error, .alert-danger');
+    if (firstError) {
+        firstError.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    }
 });
 </script>
-<!-- Добавьте фильтр add_class в templatetags для красивых инпутов, если его нет -->
-{% endblock %}
-
-{% block extra_head %}
-<style>
-/* СЕЛЕКТ и ИНПУТЫ */
-.nice-input, .modern-select, #id_avito_account {
-    width: 100%;
-    padding: .65em 1em .67em 2.1em;
-    border: 1.1px solid #aee7ec;
-    border-radius: 8.7px;
-    background: #f8fafb;
-    font-size: 1.05em;
-    color: #223869;
-    outline: none;
-    transition: border .15s;
-}
-.nice-input:focus, .modern-select:focus, #id_avito_account:focus {
-    border-color: #38a3a5;
-}
-/* ТУМБЛЕРЫ */
-.switch {
-  position: relative;
-  display: inline-block;
-  width: 44px;
-  height: 24px;
-}
-.switch input { opacity: 0; width: 0; height: 0; }
-.slider {
-  position: absolute;cursor:pointer;top:0;left:0;right:0;bottom:0;
-  background-color: #cbe2e9;transition:.21s;}
-.slider:before {
-  position:absolute;content:"";height:18px;width:18px;left:3px;bottom:3px;
-  background:#fff;transition:.21s;box-shadow:0 2px 6px #2091871b;
-  border-radius:50%;
-}
-input:checked + .slider { background: linear-gradient(45deg,#38a3a5 45%,#1ebe67 95%);}
-input:checked + .slider:before { transform:translateX(19.3px);}
-.slider.round { border-radius: 25px;}
-/* ДНИ НЕДЕЛИ */
-.modern-days label {display:inline-block;margin:.12em 5px;cursor:pointer;font-size:1em;transition:.12s;}
-.modern-days input[type=checkbox] {
-    accent-color: #38a3a5;
-    width: 1.02em;height:1.02em;margin-right:3.7px;cursor:pointer;
-}
-.btn-primary { background: linear-gradient(87deg,#38a3a5 55%, #1ebe67 99%);
-    color: #fff;font-weight:600;
-    border:none;border-radius: 10px;
-    padding:1.03em 0;font-size:1.1em;
-    box-shadow:0 3px 12px -2px #38a3a544;cursor:pointer;transition:background .18s;
-}
-.btn-primary:hover { background: linear-gradient(87deg,#1ebe67 10%, #38a3a5 90%);}
-.form-actions {margin-top:2em;}
-.field-errors,.form-errors {margin-top:.1em;margin-bottom:.3em;color:#e06363;font-size:.98em;}
-</style>
 {% endblock %}

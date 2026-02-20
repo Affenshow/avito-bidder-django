@@ -1,37 +1,994 @@
-<!-- main_app/templates/main_app/task_detail.html -->
 {% extends 'base.html' %}
 {% load static %}
 
-{% block title %}Детали задачи #{{ task.id }} - {{ block.super }}{% endblock %}
+{% block title %}Задача #{{ task.id }} — Bidder PRO{% endblock %}
+{% block breadcrumb %}
+    <a href="{% url 'task-list' %}">Дашборд</a>
+    <span class="separator">/</span>
+    <span class="current">Задача #{{ task.id }}</span>
+{% endblock %}
+{% block page_title %}
+    {% if task.title and task.title != "Название не найдено" %}
+        {{ task.title|truncatechars:50 }}
+    {% else %}
+        Объявление #{{ task.ad_id }}
+    {% endif %}
+{% endblock %}
+{% block page_subtitle %}Детальная информация и журнал событий{% endblock %}
 
-{% block page_title %}История задачи #{{ task.id }}{% endblock %}
-
-{% block header_actions %}
+{% block content_actions %}
+    <a href="{% url 'task-edit' pk=task.pk %}" class="btn btn-primary">
+        <i class="fas fa-pencil-alt"></i> Редактировать
+    </a>
     <a href="{% url 'task-list' %}" class="btn btn-secondary">
-        <i class="fas fa-arrow-left"></i> Назад к списку
+        <i class="fas fa-arrow-left"></i> Назад
     </a>
 {% endblock %}
 
 {% block content %}
-    <div class="task-details">
-        <h4>Объявление: {{ task.ad_id }}</h4>
-        <p>URL для поиска: <a href="{{ task.search_url }}" target="_blank">открыть</a></p>
-        <p>Цель: до {{ task.target_position }} места</p>
-        <p>... от {{ task.min_price|floatformat:"-0" }} до {{ task.max_price|floatformat:"-0" }} ₽</p>
+
+<!-- ===== TOP: IMAGE + INFO ===== -->
+<div class="detail-top">
+    <!-- Card: Preview -->
+    <div class="detail-preview card">
+        <div class="detail-image">
+            {% if task.image_url %}
+                <img src="{{ task.image_url }}" alt="{{ task.title }}">
+            {% else %}
+                <div class="detail-image-placeholder">
+                    <i class="fas fa-image"></i>
+                    <span>Нет изображения</span>
+                </div>
+            {% endif %}
+        </div>
+        <div class="detail-preview-body">
+            <div class="detail-status-row">
+                <span class="status-badge {% if task.is_active %}active{% else %}paused{% endif %}">
+                    {% if task.is_active %}Активен{% else %}На паузе{% endif %}
+                </span>
+                <span class="detail-id">#{{ task.ad_id }}</span>
+            </div>
+            <h2 class="detail-title">
+                {% if task.title and task.title != "Название не найдено" %}
+                    {{ task.title }}
+                {% else %}
+                    Объявление #{{ task.ad_id }}
+                {% endif %}
+            </h2>
+            {% if task.avito_account %}
+                <div class="detail-account">
+                    <div class="detail-account-avatar">
+                        {{ task.avito_account.name|default:"?"|first|upper }}
+                    </div>
+                    <div>
+                        <div class="detail-account-name">{{ task.avito_account.name|default:"Без названия" }}</div>
+                        <div class="detail-account-label">Аккаунт Avito</div>
+                    </div>
+                </div>
+            {% endif %}
+            {% if task.search_url %}
+                <a href="{{ task.search_url }}" target="_blank" rel="noopener" class="detail-search-link">
+                    <i class="fas fa-external-link-alt"></i> Открыть поисковую выдачу
+                </a>
+            {% endif %}
+        </div>
     </div>
 
-    <h3 class="logs-header">Журнал событий</h3>
+    <!-- Card: Metrics -->
+    <div class="detail-metrics">
+        <!-- Position -->
+        <div class="metric-card">
+            <div class="metric-card-header">
+                <div class="metric-icon purple"><i class="fas fa-crosshairs"></i></div>
+                <div class="metric-label">Текущая позиция</div>
+            </div>
+            <div class="metric-main-value">
+                {% if task.current_position %}
+                    <span class="metric-number {% if task.current_position >= task.target_position_min and task.current_position <= task.target_position_max %}text-success{% elif task.current_position > task.target_position_max %}text-danger{% else %}text-warning{% endif %}">
+                        {{ task.current_position }}
+                    </span>
+                {% else %}
+                    <span class="metric-number text-muted">—</span>
+                {% endif %}
+            </div>
+            <div class="metric-sub">
+                Целевой диапазон:
+                <strong>{{ task.target_position_min }} – {{ task.target_position_max }}</strong>
+            </div>
+            <div class="metric-bar-wrap">
+                {% if task.current_position %}
+                    {% widthratio task.current_position task.target_position_max 100 as pos_pct %}
+                    <div class="metric-bar">
+                        <div class="metric-bar-fill {% if task.current_position >= task.target_position_min and task.current_position <= task.target_position_max %}green{% elif task.current_position > task.target_position_max %}red{% else %}yellow{% endif %}"
+                             style="width: min({{ pos_pct|default:'0' }}%, 100%)"></div>
+                    </div>
+                {% endif %}
+            </div>
+        </div>
 
-    <div class="logs-container">
+        <!-- Price -->
+        <div class="metric-card">
+            <div class="metric-card-header">
+                <div class="metric-icon green"><i class="fas fa-ruble-sign"></i></div>
+                <div class="metric-label">Текущая ставка</div>
+            </div>
+            <div class="metric-main-value">
+                {% if task.current_price %}
+                    <span class="metric-number">{{ task.current_price|floatformat:"0" }}</span>
+                    <span class="metric-unit">₽</span>
+                {% else %}
+                    <span class="metric-number text-muted">—</span>
+                {% endif %}
+            </div>
+            <div class="metric-sub">
+                Диапазон:
+                <strong>{{ task.min_price|floatformat:"0" }} – {{ task.max_price|floatformat:"0" }} ₽</strong>
+            </div>
+            {% if task.current_price %}
+                <div class="metric-bar-wrap">
+                    {% widthratio task.current_price task.max_price 100 as price_pct %}
+                    <div class="metric-bar">
+                        <div class="metric-bar-fill blue" style="width: {{ price_pct|default:'0' }}%"></div>
+                    </div>
+                </div>
+            {% endif %}
+        </div>
+
+        <!-- Bid Step -->
+        <div class="metric-card">
+            <div class="metric-card-header">
+                <div class="metric-icon yellow"><i class="fas fa-shoe-prints"></i></div>
+                <div class="metric-label">Шаг ставки</div>
+            </div>
+            <div class="metric-main-value">
+                <span class="metric-number">{{ task.bid_step|floatformat:"0" }}</span>
+                <span class="metric-unit">₽</span>
+            </div>
+            <div class="metric-sub">
+                Изменение за одну итерацию
+            </div>
+        </div>
+
+        <!-- Daily Budget -->
+        <div class="metric-card">
+            <div class="metric-card-header">
+                <div class="metric-icon blue"><i class="fas fa-wallet"></i></div>
+                <div class="metric-label">Дневной лимит</div>
+            </div>
+            <div class="metric-main-value">
+                {% if task.daily_budget and task.daily_budget > 0 %}
+                    <span class="metric-number">{{ task.daily_budget|floatformat:"0" }}</span>
+                    <span class="metric-unit">₽</span>
+                {% else %}
+                    <span class="metric-number text-muted">∞</span>
+                {% endif %}
+            </div>
+            <div class="metric-sub">
+                {% if task.daily_budget and task.daily_budget > 0 %}
+                    Максимум трат в день
+                {% else %}
+                    Без ограничений
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- ===== SETTINGS SUMMARY ===== -->
+<div class="detail-settings card">
+    <div class="card-header">
+        <span class="card-header-title"><i class="fas fa-sliders-h"></i> Параметры задачи</span>
+    </div>
+    <div class="card-body">
+        <div class="settings-grid">
+            <div class="setting-item">
+                <div class="setting-icon"><i class="fas fa-power-off"></i></div>
+                <div class="setting-info">
+                    <div class="setting-label">Статус</div>
+                    <div class="setting-value">
+                        <span class="status-badge {% if task.is_active %}active{% else %}paused{% endif %}">
+                            {% if task.is_active %}Активен{% else %}На паузе{% endif %}
+                        </span>
+                    </div>
+                </div>
+            </div>
+            <div class="setting-item">
+                <div class="setting-icon"><i class="fas fa-snowflake"></i></div>
+                <div class="setting-info">
+                    <div class="setting-label">Заморозка цены</div>
+                    <div class="setting-value">
+                        {% if task.freeze_price_if_not_found %}
+                            <span class="setting-badge on"><i class="fas fa-check"></i> Включена</span>
+                        {% else %}
+                            <span class="setting-badge off"><i class="fas fa-times"></i> Выключена</span>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+            <div class="setting-item">
+                <div class="setting-icon"><i class="fas fa-clock"></i></div>
+                <div class="setting-info">
+                    <div class="setting-label">Расписание</div>
+                    <div class="setting-value">
+                        <div class="setting-schedule-chips">
+                            {% if task.schedule_list %}
+                                {% for interval in task.schedule_list %}
+                                    <span class="tc-schedule-chip">
+                                        {{ interval.startTime|default:interval.start }} – {{ interval.endTime|default:interval.end }}
+                                    </span>
+                                {% endfor %}
+                            {% else %}
+                                <span class="tc-schedule-chip always">Круглосуточно</span>
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="setting-item">
+                <div class="setting-icon"><i class="fas fa-link"></i></div>
+                <div class="setting-info">
+                    <div class="setting-label">Поисковый URL</div>
+                    <div class="setting-value">
+                        {% if task.search_url %}
+                            <a href="{{ task.search_url }}" target="_blank" class="setting-link">
+                                {{ task.search_url|truncatechars:50 }}
+                                <i class="fas fa-external-link-alt"></i>
+                            </a>
+                        {% else %}
+                            <span class="text-muted">Не указан</span>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- ===== LOGS ===== -->
+<div class="detail-logs card">
+    <div class="card-header">
+        <span class="card-header-title"><i class="fas fa-scroll"></i> Журнал событий</span>
+        <div class="card-header-actions">
+            <span class="log-count-badge">{{ logs|length }} записей</span>
+            <button class="btn btn-ghost btn-sm" id="filter-all" data-active="true">Все</button>
+            <button class="btn btn-ghost btn-sm" id="filter-info">Инфо</button>
+            <button class="btn btn-ghost btn-sm" id="filter-warning">Внимание</button>
+            <button class="btn btn-ghost btn-sm" id="filter-error">Ошибки</button>
+        </div>
+    </div>
+    <div class="logs-list" id="logs-list">
         {% for log in logs %}
-            <div class="log-entry log-{{ log.level|lower }}">
-                <span class="log-timestamp">{{ log.timestamp|date:"d.m.Y H:i:s" }}</span>
-                <span class="log-message">{{ log.message }}</span>
+            <div class="log-row log-{{ log.level|lower }}" data-level="{{ log.level|lower }}">
+                <div class="log-icon">
+                    {% if log.level == 'ERROR' %}
+                        <i class="fas fa-exclamation-circle"></i>
+                    {% elif log.level == 'WARNING' %}
+                        <i class="fas fa-exclamation-triangle"></i>
+                    {% elif log.level == 'SUCCESS' %}
+                        <i class="fas fa-check-circle"></i>
+                    {% else %}
+                        <i class="fas fa-info-circle"></i>
+                    {% endif %}
+                </div>
+                <div class="log-content">
+                    <div class="log-message">{{ log.message }}</div>
+                    <div class="log-time">
+                        <i class="fas fa-clock"></i>
+                        {{ log.timestamp|date:"d.m.Y H:i:s" }}
+                    </div>
+                </div>
+                <div class="log-level-badge {{ log.level|lower }}">
+                    {{ log.level }}
+                </div>
             </div>
         {% empty %}
-            <div class="log-entry">
-                <span class="log-message">Для этой задачи еще нет записей в журнале.</span>
+            <div class="logs-empty">
+                <div class="logs-empty-icon"><i class="fas fa-inbox"></i></div>
+                <div class="logs-empty-title">Нет записей</div>
+                <div class="logs-empty-text">Журнал пока пуст. Записи появятся после первой итерации биддера.</div>
             </div>
         {% endfor %}
     </div>
+</div>
+
+<!-- ===== DANGER ZONE ===== -->
+<div class="danger-zone card">
+    <div class="card-header">
+        <span class="card-header-title" style="color: var(--danger);">
+            <i class="fas fa-exclamation-triangle"></i> Опасная зона
+        </span>
+    </div>
+    <div class="card-body">
+        <div class="danger-row">
+            <div class="danger-info">
+                <div class="danger-title">Удалить задачу</div>
+                <div class="danger-desc">Задача будет удалена навсегда. Это действие нельзя отменить.</div>
+            </div>
+            <a href="{% url 'task-delete' pk=task.pk %}" class="btn btn-danger">
+                <i class="fas fa-trash-alt"></i> Удалить
+            </a>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_head %}
+<style>
+    /* ===== DETAIL TOP ===== */
+    .detail-top {
+        display: grid;
+        grid-template-columns: 380px 1fr;
+        gap: 24px;
+        margin-bottom: 24px;
+    }
+
+    /* Preview Card */
+    .detail-preview {
+        overflow: hidden;
+    }
+    .detail-image {
+        height: 220px;
+        overflow: hidden;
+        background: var(--gray-100);
+    }
+    .detail-image img {
+        width: 100%;
+        height: 100%;
+        object-fit: cover;
+    }
+    .detail-image-placeholder {
+        width: 100%;
+        height: 100%;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        gap: 8px;
+        color: var(--gray-300);
+        font-size: 0.9em;
+    }
+    .detail-image-placeholder i {
+        font-size: 3em;
+    }
+    .detail-preview-body {
+        padding: 20px;
+    }
+    .detail-status-row {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        margin-bottom: 12px;
+    }
+    .detail-id {
+        font-size: 0.78em;
+        font-weight: 600;
+        color: var(--gray-400);
+        background: var(--gray-100);
+        padding: 3px 10px;
+        border-radius: 6px;
+    }
+    .detail-title {
+        font-size: 1.2em;
+        font-weight: 700;
+        color: var(--gray-900);
+        margin-bottom: 16px;
+        line-height: 1.4;
+    }
+    .detail-account {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        margin-bottom: 16px;
+    }
+    .detail-account-avatar {
+        width: 36px; height: 36px;
+        border-radius: 50%;
+        background: linear-gradient(135deg, var(--primary-light), var(--accent));
+        color: #fff;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-weight: 700;
+        font-size: 0.9em;
+        flex-shrink: 0;
+    }
+    .detail-account-name {
+        font-weight: 600;
+        font-size: 0.9em;
+        color: var(--gray-800);
+    }
+    .detail-account-label {
+        font-size: 0.75em;
+        color: var(--gray-400);
+    }
+    .detail-search-link {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        font-size: 0.85em;
+        font-weight: 600;
+        color: var(--primary);
+        text-decoration: none;
+        padding: 8px 14px;
+        background: var(--primary-bg);
+        border-radius: var(--radius-sm);
+        transition: var(--transition);
+    }
+    .detail-search-link:hover {
+        background: #ddd6fe;
+    }
+
+    /* Metrics Grid */
+    .detail-metrics {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 16px;
+    }
+    .metric-card {
+        background: #fff;
+        border: 1px solid var(--gray-200);
+        border-radius: var(--radius-md);
+        padding: 20px;
+        box-shadow: var(--shadow-sm);
+        transition: var(--transition);
+    }
+    .metric-card:hover {
+        box-shadow: var(--shadow-md);
+    }
+    .metric-card-header {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        margin-bottom: 14px;
+    }
+    .metric-icon {
+        width: 36px; height: 36px;
+        border-radius: var(--radius-sm);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 0.9em;
+    }
+    .metric-icon.purple { background: var(--primary-bg); color: var(--primary); }
+    .metric-icon.green { background: var(--success-bg); color: var(--success); }
+    .metric-icon.yellow { background: var(--warning-bg); color: var(--warning); }
+    .metric-icon.blue { background: #dbeafe; color: #3b82f6; }
+    .metric-label {
+        font-size: 0.8em;
+        font-weight: 600;
+        color: var(--gray-500);
+    }
+    .metric-main-value {
+        display: flex;
+        align-items: baseline;
+        gap: 4px;
+        margin-bottom: 6px;
+    }
+    .metric-number {
+        font-size: 2em;
+        font-weight: 700;
+        color: var(--gray-900);
+        letter-spacing: -0.03em;
+        line-height: 1;
+    }
+    .metric-unit {
+        font-size: 0.9em;
+        font-weight: 600;
+        color: var(--gray-400);
+    }
+    .metric-sub {
+        font-size: 0.78em;
+        color: var(--gray-400);
+        margin-bottom: 10px;
+    }
+    .metric-sub strong {
+        color: var(--gray-600);
+    }
+    .metric-bar-wrap {
+        margin-top: 4px;
+    }
+    .metric-bar {
+        width: 100%;
+        height: 6px;
+        background: var(--gray-100);
+        border-radius: 3px;
+        overflow: hidden;
+    }
+    .metric-bar-fill {
+        height: 100%;
+        border-radius: 3px;
+        transition: width 0.5s ease;
+    }
+    .metric-bar-fill.green { background: var(--success); }
+    .metric-bar-fill.red { background: var(--danger); }
+    .metric-bar-fill.yellow { background: var(--warning); }
+    .metric-bar-fill.blue { background: #3b82f6; }
+
+    /* ===== SETTINGS ===== */
+    .detail-settings {
+        margin-bottom: 24px;
+    }
+    .settings-grid {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 0;
+    }
+    .setting-item {
+        display: flex;
+        align-items: flex-start;
+        gap: 14px;
+        padding: 18px 20px;
+        border-bottom: 1px solid var(--gray-100);
+        border-right: 1px solid var(--gray-100);
+    }
+    .setting-item:nth-child(2n) {
+        border-right: none;
+    }
+    .setting-item:nth-last-child(-n+2) {
+        border-bottom: none;
+    }
+    .setting-icon {
+        width: 34px; height: 34px;
+        border-radius: var(--radius-sm);
+        background: var(--gray-50);
+        color: var(--gray-400);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 0.85em;
+        flex-shrink: 0;
+    }
+    .setting-label {
+        font-size: 0.78em;
+        font-weight: 600;
+        color: var(--gray-400);
+        text-transform: uppercase;
+        letter-spacing: 0.04em;
+        margin-bottom: 4px;
+    }
+    .setting-value {
+        font-size: 0.9em;
+        color: var(--gray-800);
+    }
+    .setting-badge {
+        display: inline-flex;
+        align-items: center;
+        gap: 5px;
+        font-size: 0.85em;
+        font-weight: 600;
+        padding: 3px 10px;
+        border-radius: 6px;
+    }
+    .setting-badge.on {
+        background: var(--success-bg);
+        color: #059669;
+    }
+    .setting-badge.off {
+        background: var(--gray-100);
+        color: var(--gray-500);
+    }
+    .setting-link {
+        color: var(--primary);
+        text-decoration: none;
+        font-size: 0.85em;
+        word-break: break-all;
+    }
+    .setting-link:hover {
+        text-decoration: underline;
+    }
+    .setting-schedule-chips {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 4px;
+    }
+    .tc-schedule-chip {
+        background: var(--gray-100);
+        color: var(--gray-600);
+        font-weight: 600;
+        padding: 3px 10px;
+        border-radius: 4px;
+        font-size: 0.85em;
+    }
+    .tc-schedule-chip.always {
+        background: var(--success-bg);
+        color: #059669;
+    }
+
+    /* ===== LOGS ===== */
+    .detail-logs {
+        margin-bottom: 24px;
+    }
+    .detail-logs .card-header {
+        flex-wrap: wrap;
+        gap: 10px;
+    }
+    .card-header-actions {
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        flex-wrap: wrap;
+    }
+    .log-count-badge {
+        font-size: 0.78em;
+        font-weight: 600;
+        color: var(--gray-400);
+        background: var(--gray-100);
+        padding: 4px 12px;
+        border-radius: 20px;
+        margin-right: 4px;
+    }
+    .card-header-actions .btn[data-active="true"] {
+        background: var(--primary-bg);
+        color: var(--primary);
+    }
+
+    .logs-list {
+        max-height: 500px;
+        overflow-y: auto;
+    }
+    .log-row {
+        display: flex;
+        align-items: flex-start;
+        gap: 12px;
+        padding: 14px 24px;
+        border-bottom: 1px solid var(--gray-50);
+        transition: var(--transition);
+    }
+    .log-row:hover {
+        background: var(--gray-50);
+    }
+    .log-row:last-child {
+        border-bottom: none;
+    }
+    .log-icon {
+        width: 28px; height: 28px;
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 0.8em;
+        flex-shrink: 0;
+        margin-top: 2px;
+    }
+    .log-row.log-error .log-icon { background: var(--danger-bg); color: var(--danger); }
+    .log-row.log-warning .log-icon { background: var(--warning-bg); color: var(--warning); }
+    .log-row.log-success .log-icon { background: var(--success-bg); color: var(--success); }
+    .log-row.log-info .log-icon { background: #dbeafe; color: #3b82f6; }
+
+    .log-content {
+        flex: 1;
+        min-width: 0;
+    }
+    .log-message {
+        font-size: 0.88em;
+        color: var(--gray-700);
+        line-height: 1.5;
+        word-break: break-word;
+    }
+    .log-time {
+        font-size: 0.73em;
+        color: var(--gray-400);
+        margin-top: 4px;
+        display: flex;
+        align-items: center;
+        gap: 5px;
+    }
+    .log-level-badge {
+        font-size: 0.65em;
+        font-weight: 700;
+        padding: 3px 10px;
+        border-radius: 20px;
+        text-transform: uppercase;
+        letter-spacing: 0.05em;
+        flex-shrink: 0;
+        margin-top: 2px;
+    }
+    .log-level-badge.error { background: var(--danger-bg); color: var(--danger); }
+    .log-level-badge.warning { background: var(--warning-bg); color: #92400e; }
+    .log-level-badge.success { background: var(--success-bg); color: #065f46; }
+    .log-level-badge.info { background: #dbeafe; color: #1e40af; }
+
+    .logs-empty {
+        text-align: center;
+        padding: 48px 20px;
+    }
+    .logs-empty-icon {
+        width: 60px; height: 60px;
+        background: var(--gray-100);
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        margin: 0 auto 16px;
+        font-size: 1.5em;
+        color: var(--gray-300);
+    }
+    .logs-empty-title {
+        font-weight: 600;
+        color: var(--gray-700);
+        margin-bottom: 4px;
+    }
+    .logs-empty-text {
+        font-size: 0.85em;
+        color: var(--gray-400);
+    }
+
+    /* ===== DANGER ZONE ===== */
+    .danger-zone {
+        border-color: #fecaca;
+    }
+    .danger-zone .card-header {
+        background: #fff5f5;
+        border-bottom-color: #fecaca;
+    }
+    .danger-row {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 16px;
+    }
+    .danger-title {
+        font-weight: 600;
+        font-size: 0.95em;
+        color: var(--gray-800);
+        margin-bottom: 4px;
+    }
+    .danger-desc {
+        font-size: 0.82em;
+        color: var(--gray-500);
+    }
+
+    /* ===== RESPONSIVE ===== */
+    @media (max-width: 1024px) {
+        .detail-top {
+            grid-template-columns: 1fr;
+        }
+        .detail-metrics {
+            grid-template-columns: 1fr 1fr;
+        }
+    }
+    @media (max-width: 768px) {
+        .detail-metrics {
+            grid-template-columns: 1fr;
+        }
+        .settings-grid {
+            grid-template-columns: 1fr;
+        }
+        .setting-item {
+            border-right: none !important;
+        }
+        .setting-item:last-child {
+            border-bottom: none;
+        }
+        .log-row {
+            padding: 12px 16px;
+        }
+        .log-level-badge {
+            display: none;
+        }
+        .danger-row {
+            flex-direction: column;
+            align-items: flex-start;
+        }
+        .card-header-actions {
+            width: 100%;
+        }
+        .metric-number {
+            font-size: 1.6em;
+        }
+    }
+    @media (max-width: 480px) {
+        .detail-image {
+            height: 160px;
+        }
+        .detail-preview-body {
+            padding: 16px;
+        }
+        .metric-card {
+            padding: 14px;
+        }
+    }
+</style>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // ===== Log Filters =====
+    var filterBtns = document.querySelectorAll('.card-header-actions .btn');
+    var logRows = document.querySelectorAll('.log-row');
+
+    filterBtns.forEach(function(btn) {
+        btn.addEventListener('click', function() {
+            // Reset active
+            filterBtns.forEach(function(b) { b.removeAttribute('data-active'); });
+            btn.setAttribute('data-active', 'true');
+
+            var filterId = btn.id;
+            var level = filterId.replace('filter-', '');
+
+            logRows.forEach(function(row) {
+                if (level === 'all') {
+                    row.style.display = '';
+                } else {
+                    if (row.dataset.level === level) {
+                        row.style.display = '';
+                    } else {
+                        row.style.display = 'none';
+                    }
+                }
+            });
+
+            // Update count
+            var visibleCount = 0;
+            logRows.forEach(function(row) {
+                if (row.style.display !== 'none') visibleCount++;
+            });
+            var countBadge = document.querySelector('.log-count-badge');
+            if (countBadge) {
+                countBadge.textContent = visibleCount + ' записей';
+            }
+        });
+    });
+
+    // ===== Auto-scroll logs to latest =====
+    var logsList = document.getElementById('logs-list');
+    if (logsList && logsList.scrollHeight > logsList.clientHeight) {
+        // Already at top (newest first), no scroll needed
+    }
+
+    // ===== Animate metric numbers =====
+    function animateValue(el, target) {
+        if (!target || isNaN(target)) return;
+        var current = 0;
+        var duration = 800;
+        var startTime = null;
+
+        function step(timestamp) {
+            if (!startTime) startTime = timestamp;
+            var progress = Math.min((timestamp - startTime) / duration, 1);
+            // easeOutCubic
+            var ease = 1 - Math.pow(1 - progress, 3);
+            current = Math.floor(ease * target);
+            el.textContent = current;
+            if (progress < 1) {
+                requestAnimationFrame(step);
+            } else {
+                el.textContent = target;
+            }
+        }
+        requestAnimationFrame(step);
+    }
+
+    document.querySelectorAll('.metric-number').forEach(function(el) {
+        var text = el.textContent.trim();
+        var num = parseInt(text);
+        if (!isNaN(num) && num > 0) {
+            el.textContent = '0';
+            setTimeout(function() {
+                animateValue(el, num);
+            }, 200);
+        }
+    });
+
+    // ===== Metric bars animation =====
+    document.querySelectorAll('.metric-bar-fill').forEach(function(bar) {
+        var targetWidth = bar.style.width;
+        bar.style.width = '0%';
+        setTimeout(function() {
+            bar.style.width = targetWidth;
+        }, 400);
+    });
+
+    // ===== Log row click to expand =====
+    logRows.forEach(function(row) {
+        row.style.cursor = 'pointer';
+        row.addEventListener('click', function() {
+            var message = row.querySelector('.log-message');
+            if (!message) return;
+
+            if (row.classList.contains('expanded')) {
+                row.classList.remove('expanded');
+                message.style.whiteSpace = '';
+                message.style.overflow = '';
+            } else {
+                row.classList.add('expanded');
+                message.style.whiteSpace = 'normal';
+                message.style.overflow = 'visible';
+            }
+        });
+    });
+
+    // ===== Copy log message on double-click =====
+    logRows.forEach(function(row) {
+        row.addEventListener('dblclick', function() {
+            var message = row.querySelector('.log-message');
+            if (!message) return;
+
+            var text = message.textContent.trim();
+            if (navigator.clipboard) {
+                navigator.clipboard.writeText(text).then(function() {
+                    showToast('Скопировано в буфер');
+                });
+            }
+        });
+    });
+
+    // ===== Toast notification =====
+    function showToast(message) {
+        var existing = document.querySelector('.toast-notification');
+        if (existing) existing.remove();
+
+        var toast = document.createElement('div');
+        toast.className = 'toast-notification';
+        toast.innerHTML = '<i class="fas fa-check-circle"></i> ' + message;
+        document.body.appendChild(toast);
+
+        requestAnimationFrame(function() {
+            toast.classList.add('visible');
+        });
+
+        setTimeout(function() {
+            toast.classList.remove('visible');
+            setTimeout(function() { toast.remove(); }, 300);
+        }, 2000);
+    }
+
+    // ===== Parse schedule for display =====
+    // (Schedule is already parsed in Django view, this is just a fallback)
+});
+</script>
+
+<style>
+    /* Toast */
+    .toast-notification {
+        position: fixed;
+        bottom: 24px;
+        right: 24px;
+        background: var(--gray-800);
+        color: #fff;
+        padding: 12px 20px;
+        border-radius: var(--radius-sm);
+        font-size: 0.85em;
+        font-weight: 600;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        z-index: 9999;
+        box-shadow: var(--shadow-lg);
+        opacity: 0;
+        transform: translateY(10px);
+        transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    }
+    .toast-notification.visible {
+        opacity: 1;
+        transform: translateY(0);
+    }
+    .toast-notification i {
+        color: var(--success);
+    }
+
+    /* Expanded log row */
+    .log-row.expanded {
+        background: var(--gray-50);
+    }
+    .log-row.expanded .log-message {
+        white-space: normal !important;
+    }
+
+    /* Scrollbar for logs */
+    .logs-list::-webkit-scrollbar {
+        width: 6px;
+    }
+    .logs-list::-webkit-scrollbar-track {
+        background: transparent;
+    }
+    .logs-list::-webkit-scrollbar-thumb {
+        background: var(--gray-200);
+        border-radius: 3px;
+    }
+    .logs-list::-webkit-scrollbar-thumb:hover {
+        background: var(--gray-300);
+    }
+</style>
 {% endblock %}

@@ -1,78 +1,539 @@
 {% extends 'base.html' %}
-{% block title %}Мои аккаунты Avito{% endblock %}
-{% block page_title %}Мои аккаунты Avito{% endblock %}
+{% load static %}
+
+{% block title %}Аккаунты Avito — Bidder PRO{% endblock %}
+{% block breadcrumb %}Аккаунты{% endblock %}
+{% block page_title %}Аккаунты Avito{% endblock %}
+{% block page_subtitle %}Управление подключёнными аккаунтами{% endblock %}
+
+{% block content_actions %}
+    <a href="{% url 'avito-account-add' %}" class="btn btn-primary">
+        <i class="fas fa-plus"></i> Добавить аккаунт
+    </a>
+{% endblock %}
 
 {% block content %}
-<div class="accounts-b2b-wrap" style="max-width:1080px;margin:0 auto 2.7em;">
-    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:2.4em;">
-        <h2 style="margin:0;font-size:2.14em;color:#22577b;font-weight:800;letter-spacing:-.02em;">Мои аккаунты Avito</h2>
-        <a href="{% url 'avito-account-add' %}" class="btn btn-primary" style="padding:.9em 2.3em;font-size:1.1em;border-radius:11px;background:linear-gradient(90deg,#38a3a5,#1ebe67);box-shadow:0 2px 14px #2091870f;">
+
+<!-- Stats -->
+<div class="stats-grid stats-grid-3">
+    <div class="stat-card">
+        <div class="stat-icon purple"><i class="fas fa-users"></i></div>
+        <div class="stat-info">
+            <div class="stat-label">Всего аккаунтов</div>
+            <div class="stat-value">{{ accounts|length }}</div>
+        </div>
+    </div>
+    <div class="stat-card">
+        <div class="stat-icon green"><i class="fas fa-ruble-sign"></i></div>
+        <div class="stat-info">
+            <div class="stat-label">Общий баланс</div>
+            <div class="stat-value" id="total-balance">—</div>
+        </div>
+    </div>
+    <div class="stat-card">
+        <div class="stat-icon blue"><i class="fas fa-gift"></i></div>
+        <div class="stat-info">
+            <div class="stat-label">Общий аванс</div>
+            <div class="stat-value" id="total-bonus">—</div>
+        </div>
+    </div>
+</div>
+
+<!-- Accounts Grid -->
+{% if accounts %}
+    <div class="accounts-grid">
+        {% for acc in accounts %}
+            <div class="account-card" data-balance="{{ acc.real_balance|default:'0' }}" data-bonus="{{ acc.bonus_balance|default:'0' }}">
+                <!-- Header -->
+                <div class="ac-header">
+                    <div class="ac-avatar">
+                        <span>{{ acc.name|default:"?"|first|upper }}</span>
+                    </div>
+                    <div class="ac-header-info">
+                        <h3 class="ac-name">{{ acc.name|default:"Без названия" }}</h3>
+                        <div class="ac-status connected">
+                            <span class="ac-status-dot"></span>
+                            Подключён
+                        </div>
+                    </div>
+                    <div class="ac-menu-wrap">
+                        <button class="ac-menu-btn" title="Действия">
+                            <i class="fas fa-ellipsis-v"></i>
+                        </button>
+                        <div class="ac-dropdown">
+                            <a href="{% url 'avito-account-edit' acc.pk %}" class="ac-dropdown-item">
+                                <i class="fas fa-pencil-alt"></i> Редактировать
+                            </a>
+                            <a href="{% url 'avito-account-delete' acc.pk %}" class="ac-dropdown-item danger">
+                                <i class="fas fa-trash-alt"></i> Удалить
+                            </a>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Balance -->
+                <div class="ac-balances">
+                    <div class="ac-balance-item">
+                        <div class="ac-balance-icon green">
+                            <i class="fas fa-wallet"></i>
+                        </div>
+                        <div class="ac-balance-info">
+                            <div class="ac-balance-label">Баланс</div>
+                            <div class="ac-balance-value">
+                                {% if acc.real_balance is not None %}
+                                    <span class="ac-amount">{{ acc.real_balance|floatformat:0 }}</span>
+                                    <span class="ac-currency">₽</span>
+                                {% else %}
+                                    <span class="ac-no-data"><i class="fas fa-exclamation-circle"></i> Нет данных</span>
+                                {% endif %}
+                            </div>
+                        </div>
+                    </div>
+                    <div class="ac-balance-divider"></div>
+                    <div class="ac-balance-item">
+                        <div class="ac-balance-icon blue">
+                            <i class="fas fa-gift"></i>
+                        </div>
+                        <div class="ac-balance-info">
+                            <div class="ac-balance-label">Аванс</div>
+                            <div class="ac-balance-value">
+                                {% if acc.bonus_balance is not None %}
+                                    <span class="ac-amount">{{ acc.bonus_balance|floatformat:0 }}</span>
+                                    <span class="ac-currency">₽</span>
+                                {% else %}
+                                    <span class="ac-no-data"><i class="fas fa-exclamation-circle"></i> Нет данных</span>
+                                {% endif %}
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Footer -->
+                <div class="ac-footer">
+                    <a href="{% url 'avito-account-edit' acc.pk %}" class="ac-footer-btn edit">
+                        <i class="fas fa-pencil-alt"></i> Редактировать
+                    </a>
+                    <a href="{% url 'avito-account-delete' acc.pk %}" class="ac-footer-btn delete">
+                        <i class="fas fa-trash-alt"></i> Удалить
+                    </a>
+                </div>
+            </div>
+        {% endfor %}
+    </div>
+{% else %}
+    <!-- Empty State -->
+    <div class="empty-state">
+        <div class="empty-state-icon">
+            <i class="fas fa-plug"></i>
+        </div>
+        <div class="empty-state-title">Нет подключённых аккаунтов</div>
+        <div class="empty-state-text">
+            Подключите аккаунт Avito чтобы начать управлять ставками
+        </div>
+        <a href="{% url 'avito-account-add' %}" class="btn btn-primary">
             <i class="fas fa-plus"></i> Добавить аккаунт
         </a>
     </div>
-    {% if accounts %}
-        <div class="accounts-b2b-grid" style="display:grid;grid-gap:2.15em 2em;grid-template-columns:repeat(auto-fill,minmax(340px,1fr));">
-            {% for acc in accounts %}
-                <div class="account-b2b-card" style="padding:1.8em 2em 1.25em;background:#fff;border-radius:19px;box-shadow:0 8px 36px 0 #24bfc71b,0 2px 10px #2240770f;display:flex;flex-direction:column;transition:.17s box-shadow,background;position:relative;">
-                    <div style="display:flex;align-items:center;gap:.85em;">
-                        <div style="background:linear-gradient(45deg,#38a3a526,#1ebe672a);border-radius:50%;padding:12px;display:flex;align-items:center;justify-content:center;">
-                            <i class="fas fa-user-tie" style="color:#38a3a5;font-size:1.59em;"></i>
-                        </div>
-                        <span style="font-weight:700;font-size:1.28em;color:#21477b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">
-                            {{ acc.name }}
-                        </span>
-                    </div>
-                    <div style="margin:.94em 0 .8em;">
-                        <div style="color:#7890aa;font-size:.98em;">Баланс</div>
-                        <span style="font-weight:700;font-size:1.11em;color:#22b87d;">{% if acc.real_balance is not None %}{{ acc.real_balance|floatformat:0 }} ₽{% else %}<span style="color:#e06363">Нет данных</span>{% endif %}</span>
-                        <br>
-                        <span style="color:#7890aa;font-size:.98em;">Аванс</span>
-                        <span style="font-weight:700;font-size:1.07em;color:#38a3a5;margin-left:.16em;">
-                            {% if acc.bonus_balance is not None %}{{ acc.bonus_balance|floatformat:0 }} ₽{% else %}<span style="color:#e06363;">Нет данных</span>{% endif %}
-                        </span>
-                    </div>
-                    <div style="display:flex;gap:.7em;margin-top:auto;">
-                        <a href="{% url 'avito-account-edit' acc.pk %}" class="btn btn-outline-primary" style="border-radius:7px;padding:.68em 1.3em;font-weight:500;transition:.14s;background:#f7fafc;">
-                            <i class="fas fa-pen"></i> Редактировать
-                        </a>
-                        <a href="{% url 'avito-account-delete' acc.pk %}" class="btn btn-outline-danger" style="border-radius:7px;padding:.68em 1.3em;font-weight:500;transition:.14s;background:#fff2f2;">
-                            <i class="fas fa-trash-alt"></i> Удалить
-                        </a>
-                    </div>
-                    <span style="position:absolute;top:23px;right:23px;color:#b9c7dd;font-size:1.3em;opacity:.13;">
-                        <i class="fab fa-avianex"></i>
-                    </span>
-                </div>
-            {% endfor %}
-        </div>
-    {% else %}
-        <div class="text-center py-5" style="margin-top:5em;">
-            <p class="lead text-muted" style="font-size:1.15em;">У вас пока нет аккаунтов Avito</p>
-            
-        </div>
-    {% endif %}
-</div>
+{% endif %}
+{% endblock %}
+
+{% block extra_head %}
 <style>
-@media (max-width: 900px) {
-    .accounts-b2b-wrap {padding-left:8px; padding-right:8px;}
-    .accounts-b2b-grid {
-        grid-template-columns:repeat(auto-fill,minmax(250px,1fr));
-        grid-gap: 1.2em 1em;
+    /* ===== Stats 3-col ===== */
+    .stats-grid-3 {
+        grid-template-columns: repeat(3, 1fr);
     }
-    .account-b2b-card {padding:1.25em 1.1em 1.05em;}
-}
-@media (max-width:600px) {
-    .accounts-b2b-wrap {padding-left:2px; padding-right:2px;}
-    .accounts-b2b-grid {
-        grid-template-columns:1fr;
-        grid-gap: .7em;
+
+    /* ===== Accounts Grid ===== */
+    .accounts-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(360px, 1fr));
+        gap: 20px;
     }
-    .account-b2b-card {
-        border-radius:13px;
-        box-shadow:0 4px 16px #2091870c;
-        padding:.72em .7em;
+
+    /* ===== Account Card ===== */
+    .account-card {
+        background: #fff;
+        border: 1px solid var(--gray-200);
+        border-radius: var(--radius-md);
+        overflow: hidden;
+        box-shadow: var(--shadow-sm);
+        transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+        animation: cardFadeIn 0.4s ease-out both;
     }
-    .accounts-b2b-wrap h2 {font-size:1.22em;}
-}
+    .account-card:nth-child(1) { animation-delay: 0s; }
+    .account-card:nth-child(2) { animation-delay: 0.05s; }
+    .account-card:nth-child(3) { animation-delay: 0.1s; }
+    @keyframes cardFadeIn {
+        from { opacity: 0; transform: translateY(12px); }
+        to { opacity: 1; transform: translateY(0); }
+    }
+    .account-card:hover {
+        box-shadow: var(--shadow-lg);
+        transform: translateY(-3px);
+        border-color: var(--gray-300);
+    }
+
+    /* Header */
+    .ac-header {
+        display: flex;
+        align-items: center;
+        gap: 14px;
+        padding: 20px 20px 16px;
+        position: relative;
+    }
+    .ac-avatar {
+        width: 48px; height: 48px;
+        border-radius: 14px;
+        background: linear-gradient(135deg, var(--primary), var(--accent));
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        flex-shrink: 0;
+    }
+    .ac-avatar span {
+        color: #fff;
+        font-weight: 700;
+        font-size: 1.2em;
+    }
+    .ac-header-info {
+        flex: 1;
+        min-width: 0;
+    }
+    .ac-name {
+        font-size: 1.05em;
+        font-weight: 700;
+        color: var(--gray-900);
+        margin: 0 0 4px;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+    }
+    .ac-status {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        font-size: 0.75em;
+        font-weight: 600;
+    }
+    .ac-status.connected {
+        color: #059669;
+    }
+    .ac-status-dot {
+        width: 7px; height: 7px;
+        border-radius: 50%;
+        background: #10b981;
+        box-shadow: 0 0 6px rgba(16,185,129,0.5);
+        animation: pulse-green 2s infinite;
+    }
+    @keyframes pulse-green {
+        0%, 100% { opacity: 1; }
+        50% { opacity: 0.5; }
+    }
+
+    /* Menu dropdown */
+    .ac-menu-wrap {
+        position: relative;
+    }
+    .ac-menu-btn {
+        width: 34px; height: 34px;
+        border-radius: var(--radius-sm);
+        border: none;
+        background: transparent;
+        color: var(--gray-400);
+        cursor: pointer;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        transition: var(--transition);
+    }
+    .ac-menu-btn:hover {
+        background: var(--gray-100);
+        color: var(--gray-600);
+    }
+    .ac-dropdown {
+        position: absolute;
+        top: calc(100% + 4px);
+        right: 0;
+        background: #fff;
+        border: 1px solid var(--gray-200);
+        border-radius: var(--radius-sm);
+        box-shadow: var(--shadow-lg);
+        min-width: 180px;
+        z-index: 50;
+        opacity: 0;
+        visibility: hidden;
+        transform: translateY(-4px);
+        transition: all 0.2s;
+    }
+    .ac-menu-wrap.open .ac-dropdown {
+        opacity: 1;
+        visibility: visible;
+        transform: translateY(0);
+    }
+    .ac-dropdown-item {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        padding: 10px 16px;
+        font-size: 0.85em;
+        font-weight: 500;
+        color: var(--gray-700);
+        text-decoration: none;
+        transition: var(--transition);
+    }
+    .ac-dropdown-item:hover {
+        background: var(--gray-50);
+    }
+    .ac-dropdown-item.danger {
+        color: var(--danger);
+    }
+    .ac-dropdown-item.danger:hover {
+        background: var(--danger-bg);
+    }
+    .ac-dropdown-item i {
+        width: 16px;
+        text-align: center;
+        font-size: 0.9em;
+    }
+
+    /* Balances */
+    .ac-balances {
+        padding: 0 20px;
+        margin: 4px 0 16px;
+        background: var(--gray-50);
+        border-radius: var(--radius-sm);
+        margin-left: 20px;
+        margin-right: 20px;
+    }
+    .ac-balance-item {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        padding: 14px 0;
+    }
+    .ac-balance-divider {
+        height: 1px;
+        background: var(--gray-200);
+    }
+    .ac-balance-icon {
+        width: 36px; height: 36px;
+        border-radius: var(--radius-sm);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 0.85em;
+        flex-shrink: 0;
+    }
+    .ac-balance-icon.green { background: var(--success-bg); color: var(--success); }
+    .ac-balance-icon.blue { background: #dbeafe; color: #3b82f6; }
+    .ac-balance-label {
+        font-size: 0.75em;
+        font-weight: 600;
+        color: var(--gray-400);
+        text-transform: uppercase;
+        letter-spacing: 0.04em;
+        margin-bottom: 2px;
+    }
+    .ac-amount {
+        font-size: 1.25em;
+        font-weight: 700;
+        color: var(--gray-800);
+    }
+    .ac-currency {
+        font-size: 0.85em;
+        font-weight: 600;
+        color: var(--gray-400);
+        margin-left: 2px;
+    }
+    .ac-no-data {
+        font-size: 0.85em;
+        font-weight: 500;
+        color: var(--danger);
+        display: flex;
+        align-items: center;
+        gap: 6px;
+    }
+    .ac-no-data i {
+        font-size: 0.9em;
+    }
+
+    /* Footer */
+    .ac-footer {
+        display: flex;
+        border-top: 1px solid var(--gray-100);
+    }
+    .ac-footer-btn {
+        flex: 1;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 8px;
+        padding: 13px 16px;
+        font-size: 0.82em;
+        font-weight: 600;
+        text-decoration: none;
+        transition: var(--transition);
+    }
+    .ac-footer-btn.edit {
+        color: var(--gray-500);
+        border-right: 1px solid var(--gray-100);
+    }
+    .ac-footer-btn.edit:hover {
+        background: var(--primary-bg);
+        color: var(--primary);
+    }
+    .ac-footer-btn.delete {
+        color: var(--gray-400);
+    }
+    .ac-footer-btn.delete:hover {
+        background: var(--danger-bg);
+        color: var(--danger);
+    }
+
+    /* ===== RESPONSIVE ===== */
+    @media (max-width: 1024px) {
+        .stats-grid-3 {
+            grid-template-columns: repeat(3, 1fr);
+        }
+    }
+    @media (max-width: 768px) {
+        .stats-grid-3 {
+            grid-template-columns: 1fr;
+        }
+        .accounts-grid {
+            grid-template-columns: 1fr;
+            gap: 14px;
+        }
+    }
+    @media (max-width: 480px) {
+        .ac-header {
+            padding: 16px;
+        }
+        .ac-avatar {
+            width: 40px; height: 40px;
+            border-radius: 10px;
+        }
+        .ac-balances {
+            margin-left: 16px;
+            margin-right: 16px;
+            padding: 0 14px;
+        }
+        .ac-name {
+            font-size: 0.95em;
+        }
+        .ac-footer-btn {
+            padding: 11px 12px;
+            font-size: 0.78em;
+        }
+    }
 </style>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // ===== Dropdown menus =====
+    document.querySelectorAll('.ac-menu-btn').forEach(function(btn) {
+        btn.addEventListener('click', function(e) {
+            e.stopPropagation();
+            var wrap = btn.closest('.ac-menu-wrap');
+            var isOpen = wrap.classList.contains('open');
+
+            // Close all
+            document.querySelectorAll('.ac-menu-wrap.open').forEach(function(w) {
+                w.classList.remove('open');
+            });
+
+            if (!isOpen) {
+                wrap.classList.add('open');
+            }
+        });
+    });
+
+    // Close dropdown on outside click
+    document.addEventListener('click', function() {
+        document.querySelectorAll('.ac-menu-wrap.open').forEach(function(w) {
+            w.classList.remove('open');
+        });
+    });
+
+    // ===== Calculate totals =====
+    var totalBalance = 0;
+    var totalBonus = 0;
+    var hasBalance = false;
+    var hasBonus = false;
+
+    document.querySelectorAll('.account-card').forEach(function(card) {
+        var bal = parseFloat(card.dataset.balance);
+        var bon = parseFloat(card.dataset.bonus);
+        if (!isNaN(bal) && bal > 0) {
+            totalBalance += bal;
+            hasBalance = true;
+        }
+        if (!isNaN(bon) && bon > 0) {
+            totalBonus += bon;
+            hasBonus = true;
+        }
+    });
+
+    var balEl = document.getElementById('total-balance');
+    var bonEl = document.getElementById('total-bonus');
+
+    if (balEl) {
+        balEl.textContent = hasBalance ? Math.round(totalBalance).toLocaleString('ru-RU') + ' ₽' : '—';
+    }
+    if (bonEl) {
+        bonEl.textContent = hasBonus ? Math.round(totalBonus).toLocaleString('ru-RU') + ' ₽' : '—';
+    }
+
+    // ===== Animate stat values =====
+    function animateValue(el, target) {
+        if (!target || isNaN(target) || target <= 0) return;
+        var current = 0;
+        var duration = 800;
+        var startTime = null;
+
+        function step(timestamp) {
+            if (!startTime) startTime = timestamp;
+            var progress = Math.min((timestamp - startTime) / duration, 1);
+            var ease = 1 - Math.pow(1 - progress, 3);
+            current = Math.floor(ease * target);
+            el.textContent = current.toLocaleString('ru-RU') + ' ₽';
+            if (progress < 1) {
+                requestAnimationFrame(step);
+            } else {
+                el.textContent = target.toLocaleString('ru-RU') + ' ₽';
+            }
+        }
+
+        el.textContent = '0 ₽';
+        setTimeout(function() { requestAnimationFrame(step); }, 200);
+    }
+
+    if (hasBalance) animateValue(balEl, Math.round(totalBalance));
+    if (hasBonus) animateValue(bonEl, Math.round(totalBonus));
+
+    // ===== Animate balance amounts in cards =====
+    document.querySelectorAll('.ac-amount').forEach(function(el) {
+        var num = parseInt(el.textContent.replace(/\s/g, ''));
+        if (!isNaN(num) && num > 0) {
+            var original = el.textContent;
+            el.textContent = '0';
+            setTimeout(function() {
+                var start = null;
+                function anim(ts) {
+                    if (!start) start = ts;
+                    var p = Math.min((ts - start) / 600, 1);
+                    var ease = 1 - Math.pow(1 - p, 3);
+                    el.textContent = Math.floor(ease * num).toLocaleString('ru-RU');
+                    if (p < 1) requestAnimationFrame(anim);
+                    else el.textContent = num.toLocaleString('ru-RU');
+                }
+                requestAnimationFrame(anim);
+            }, 300);
+        }
+    });
+});
+</script>
 {% endblock %}

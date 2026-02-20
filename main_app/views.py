@@ -7,6 +7,7 @@ from django.contrib.auth.forms import UserCreationForm
 from django.contrib.auth.decorators import login_required
 from django.contrib.auth.mixins import LoginRequiredMixin, UserPassesTestMixin
 from django.http import JsonResponse
+from django.views.decorators.http import require_POST
 
 from .tasks import update_task_details
 from .models import BiddingTask, UserProfile, TaskLog, AvitoAccount
@@ -15,9 +16,8 @@ from .avito_api import get_avito_access_token, get_balances, get_user_ads, get_a
 
 logger = logging.getLogger(__name__)
 
-# +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
-# +++ СПИСОК АККАУНТОВ AVITO +++
-# +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+
+# === СПИСОК АККАУНТОВ AVITO ===
 
 @login_required
 def avito_account_list(request):
@@ -40,9 +40,8 @@ def avito_account_list(request):
     context = {'accounts': accounts}
     return render(request, 'main_app/avito_account_list.html', context)
 
-# +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
-# +++ CRUD ДЛЯ АККАУНТОВ AVITO +++
-# +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+
+# === CRUD ДЛЯ АККАУНТОВ AVITO ===
 
 class AvitoAccountCreateView(LoginRequiredMixin, CreateView):
     model = AvitoAccount
@@ -54,6 +53,7 @@ class AvitoAccountCreateView(LoginRequiredMixin, CreateView):
         form.instance.user = self.request.user
         return super().form_valid(form)
 
+
 class AvitoAccountUpdateView(LoginRequiredMixin, UserPassesTestMixin, UpdateView):
     model = AvitoAccount
     form_class = AvitoAccountForm
@@ -63,6 +63,7 @@ class AvitoAccountUpdateView(LoginRequiredMixin, UserPassesTestMixin, UpdateView
     def test_func(self):
         return self.request.user == self.get_object().user
 
+
 class AvitoAccountDeleteView(LoginRequiredMixin, UserPassesTestMixin, DeleteView):
     model = AvitoAccount
     template_name = 'main_app/avito_account_confirm_delete.html'
@@ -71,9 +72,8 @@ class AvitoAccountDeleteView(LoginRequiredMixin, UserPassesTestMixin, DeleteView
     def test_func(self):
         return self.request.user == self.get_object().user
 
-# +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
-# +++ AJAX: СПИСОК ОБЪЯВЛЕНИЙ ДЛЯ ВЫБРАННОГО АККАУНТА +++
-# +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+
+# === AJAX: СПИСОК ОБЪЯВЛЕНИЙ ДЛЯ ВЫБРАННОГО АККАУНТА ===
 
 @login_required
 def get_ads_for_account(request, account_id):
@@ -88,21 +88,17 @@ def get_ads_for_account(request, account_id):
 
     return JsonResponse({'ads': ads})
 
-# +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
-# +++ СПИСОК ЗАДАЧ (ОБЗОР) +++
-# +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+
+# === СПИСОК ЗАДАЧ (ОБЗОР) ===
 
 @login_required
 def task_list_view(request):
-    # Получаем все задачи текущего пользователя
-    tasks = BiddingTask.objects.filter(avito_account__user=request.user).select_related('avito_account')
+    tasks = BiddingTask.objects.filter(
+        avito_account__user=request.user
+    ).select_related('avito_account')
     
-    # +++ НАЧАЛО ИЗМЕНЕНИЙ +++
-    # Получаем все аккаунты этого пользователя, чтобы построить кнопки-фильтры
     accounts = AvitoAccount.objects.filter(user=request.user)
-    # +++ КОНЕЦ ИЗМЕНЕНИЙ +++
 
-    # Ваша логика обработки расписания (оставляем без изменений)
     for task in tasks:
         try:
             task.schedule_list = json.loads(task.schedule)
@@ -111,13 +107,12 @@ def task_list_view(request):
     
     context = {
         'tasks': tasks,
-        'accounts': accounts, # <-- Передаем аккаунты в шаблон
+        'accounts': accounts,
     }
     return render(request, 'main_app/task_list.html', context)
 
-# +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
-# +++ УНИВЕРСАЛЬНАЯ VIEW ДЛЯ СОЗДАНИЯ/РЕДАКТИРОВАНИЯ ЗАДАЧИ +++
-# +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+
+# === СОЗДАНИЕ/РЕДАКТИРОВАНИЕ ЗАДАЧИ ===
 
 class TaskCreateUpdateView(LoginRequiredMixin, UpdateView):
     model = BiddingTask
@@ -138,7 +133,7 @@ class TaskCreateUpdateView(LoginRequiredMixin, UpdateView):
 
     def form_valid(self, form):
         self.object = form.save(commit=False)
-        self.object.user = self.request.user  # ← ЭТО КЛЮЧЕВАЯ СТРОКА — теперь user всегда заполнен
+        self.object.user = self.request.user
         self.object.schedule = self.request.POST.get('schedule', '[]')
         if not self.object.pk:
             self.object.title = f"Объявление №{self.object.ad_id}"
@@ -146,9 +141,8 @@ class TaskCreateUpdateView(LoginRequiredMixin, UpdateView):
         update_task_details.delay(self.object.id)
         return redirect(self.success_url)
 
-# +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
-# +++ УДАЛЕНИЕ ЗАДАЧИ +++
-# +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+
+# === УДАЛЕНИЕ ЗАДАЧИ ===
 
 class TaskDeleteView(LoginRequiredMixin, UserPassesTestMixin, DeleteView):
     model = BiddingTask
@@ -159,30 +153,104 @@ class TaskDeleteView(LoginRequiredMixin, UserPassesTestMixin, DeleteView):
         task = self.get_object()
         return self.request.user == task.avito_account.user
 
-# +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
-# +++ РЕГИСТРАЦИЯ +++
-# +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+
+# === РЕГИСТРАЦИЯ ===
 
 class SignUpView(CreateView):
     form_class = UserCreationForm
     success_url = reverse_lazy('login')
     template_name = 'registration/signup.html'
 
-# +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
-# +++ НАСТРОЙКИ (ЗАГЛУШКА) +++
-# +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+
+# === НАСТРОЙКИ ===
 
 @login_required
 def settings_view(request):
     return render(request, 'main_app/settings_stub.html')
 
-# +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
-# +++ ДЕТАЛИ ЗАДАЧИ +++
-# +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+
+# === ДЕТАЛИ ЗАДАЧИ ===
 
 @login_required
 def task_detail_view(request, pk):
     task = get_object_or_404(BiddingTask, pk=pk, avito_account__user=request.user)
-    logs = task.logs.order_by('-timestamp')[:50]  # последние 50 логов
+    logs = task.logs.order_by('-timestamp')[:50]
+    
+    # Парсим расписание для отображения
+    try:
+        task.schedule_list = json.loads(task.schedule)
+    except (json.JSONDecodeError, TypeError):
+        task.schedule_list = []
+    
     context = {'task': task, 'logs': logs}
     return render(request, 'main_app/task_detail.html', context)
+
+
+# === МАССОВЫЕ ОПЕРАЦИИ ===
+
+@login_required
+@require_POST
+def bulk_update_tasks(request):
+    """Массовое обновление задач"""
+    try:
+        data = json.loads(request.body)
+        task_ids = data.get('task_ids', [])
+        
+        tasks = BiddingTask.objects.filter(
+            id__in=task_ids,
+            avito_account__user=request.user
+        )
+        
+        update_fields = {}
+        
+        if 'is_active' in data:
+            update_fields['is_active'] = data['is_active']
+        if 'target_position_min' in data:
+            update_fields['target_position_min'] = data['target_position_min']
+        if 'target_position_max' in data:
+            update_fields['target_position_max'] = data['target_position_max']
+        if 'min_price' in data:
+            update_fields['min_price'] = data['min_price']
+        if 'max_price' in data:
+            update_fields['max_price'] = data['max_price']
+        if 'bid_step' in data:
+            update_fields['bid_step'] = data['bid_step']
+        
+        if update_fields:
+            tasks.update(**update_fields)
+        
+        return JsonResponse({
+            'status': 'ok',
+            'updated': tasks.count()
+        })
+    except Exception as e:
+        return JsonResponse({
+            'status': 'error',
+            'message': str(e)
+        }, status=400)
+
+
+@login_required
+@require_POST
+def bulk_delete_tasks(request):
+    """Массовое удаление задач"""
+    try:
+        data = json.loads(request.body)
+        task_ids = data.get('task_ids', [])
+        
+        tasks = BiddingTask.objects.filter(
+            id__in=task_ids,
+            avito_account__user=request.user
+        )
+        count = tasks.count()
+        tasks.delete()
+        
+        return JsonResponse({
+            'status': 'ok',
+            'deleted': count
+        })
+    except Exception as e:
+        return JsonResponse({
+            'status': 'error',
+            'message': str(e)
+        }, status=400)

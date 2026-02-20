@@ -10,6 +10,8 @@ urlpatterns = [
     path('task/<int:pk>/', views.task_detail_view, name='task-detail'),
     path('task/<int:pk>/edit/', views.TaskCreateUpdateView.as_view(), name='task-edit'),
     path('task/<int:pk>/delete/', views.TaskDeleteView.as_view(), name='task-delete'),
+    path('api/tasks/bulk-update/', views.bulk_update_tasks, name='bulk-update-tasks'),
+    path('api/tasks/bulk-delete/', views.bulk_delete_tasks, name='bulk-delete-tasks'),
 
     # +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
     # +++ НОВЫЕ ПУТИ ДЛЯ УПРАВЛЕНИЯ АККАУНТАМИ AVITO +++

@@ -3,158 +3,782 @@
 <html lang="ru">
 <head>
     <meta charset="UTF-8">
-    <title>Регистрация | Avito Bidder</title>
-    <link rel="stylesheet" href="{% static 'css/style.css' %}">
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600&display=swap" rel="stylesheet">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Регистрация — Bidder PRO</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
     <style>
-        body.auth-page {
-            min-height: 100vh; margin: 0; 
-            background: linear-gradient(135deg,#e9f6ff 0%,#f8fafb 100%);
-            font-family: 'Inter','Segoe UI',Tahoma,sans-serif;
-            display:flex;align-items:center;justify-content:center;
+        *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+        html, body { height: 100%; }
+        body {
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: #0f172a;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            min-height: 100vh;
+            -webkit-font-smoothing: antialiased;
+            overflow-x: hidden;
         }
-        .auth-container {
-            background: #fff;
-            border-radius: 18px;
-            box-shadow: 0 6px 42px #89b3d41a,0 2px 10px #2240770b;
-            max-width: 410px;
-            width: 95%;
-            margin:auto;
-            padding:2.4em 2em 2.1em 2em;
-            display:flex;flex-direction:column;align-items:center;
+
+        /* ===== Animated BG ===== */
+        .bg-pattern {
+            position: fixed;
+            inset: 0;
+            z-index: 0;
+            overflow: hidden;
         }
-        .auth-title {
-            font-size: 2em;
-            color: #22577b;
-            margin-bottom: .4em;
+        .bg-pattern .circle {
+            position: absolute;
+            border-radius: 50%;
+            filter: blur(80px);
+            opacity: 0.15;
+            animation: floatBg 20s infinite ease-in-out;
+        }
+        .bg-pattern .circle:nth-child(1) {
+            width: 600px; height: 600px;
+            background: #4f46e5;
+            top: -15%; left: -10%;
+            animation-delay: 0s;
+        }
+        .bg-pattern .circle:nth-child(2) {
+            width: 500px; height: 500px;
+            background: #06b6d4;
+            bottom: -20%; right: -5%;
+            animation-delay: -7s;
+        }
+        .bg-pattern .circle:nth-child(3) {
+            width: 400px; height: 400px;
+            background: #8b5cf6;
+            top: 50%; left: 50%;
+            transform: translate(-50%, -50%);
+            animation-delay: -14s;
+        }
+        @keyframes floatBg {
+            0%, 100% { transform: translate(0, 0) scale(1); }
+            25% { transform: translate(30px, -40px) scale(1.05); }
+            50% { transform: translate(-20px, 20px) scale(0.95); }
+            75% { transform: translate(40px, 30px) scale(1.02); }
+        }
+
+        /* Grid */
+        .bg-grid {
+            position: fixed;
+            inset: 0;
+            z-index: 1;
+            background-image:
+                linear-gradient(rgba(255,255,255,0.02) 1px, transparent 1px),
+                linear-gradient(90deg, rgba(255,255,255,0.02) 1px, transparent 1px);
+            background-size: 60px 60px;
+        }
+
+        /* ===== Card ===== */
+        .signup-wrapper {
+            position: relative;
+            z-index: 10;
+            width: 100%;
+            max-width: 440px;
+            padding: 16px;
+        }
+        .signup-card {
+            background: rgba(255, 255, 255, 0.03);
+            backdrop-filter: blur(40px);
+            -webkit-backdrop-filter: blur(40px);
+            border: 1px solid rgba(255, 255, 255, 0.08);
+            border-radius: 20px;
+            padding: 40px 36px 36px;
+            box-shadow:
+                0 24px 48px rgba(0, 0, 0, 0.3),
+                0 0 0 1px rgba(255, 255, 255, 0.05) inset;
+            animation: cardAppear 0.6s cubic-bezier(0.16, 1, 0.3, 1);
+        }
+        @keyframes cardAppear {
+            from { opacity: 0; transform: translateY(24px) scale(0.96); }
+            to { opacity: 1; transform: translateY(0) scale(1); }
+        }
+
+        /* Logo */
+        .signup-logo {
+            text-align: center;
+            margin-bottom: 28px;
+        }
+        .signup-logo-icon {
+            width: 56px; height: 56px;
+            background: linear-gradient(135deg, #4f46e5, #06b6d4);
+            border-radius: 14px;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 24px;
+            color: #fff;
+            margin-bottom: 16px;
+            box-shadow: 0 8px 24px rgba(79, 70, 229, 0.35);
+        }
+        .signup-logo-text {
+            font-size: 1.5em;
             font-weight: 700;
-            letter-spacing: .05em;
+            color: #fff;
+            letter-spacing: -0.02em;
         }
-        .form-styled { width:100%; }
+        .signup-logo-text .pro {
+            font-size: 0.55em;
+            font-weight: 700;
+            color: #22d3ee;
+            background: rgba(6, 182, 212, 0.15);
+            padding: 3px 10px;
+            border-radius: 20px;
+            margin-left: 8px;
+            vertical-align: middle;
+            letter-spacing: 0.05em;
+        }
+        .signup-subtitle {
+            color: #64748b;
+            font-size: 0.9em;
+            margin-top: 8px;
+        }
+
+        /* Steps indicator */
+        .signup-steps {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+            margin-bottom: 28px;
+        }
+        .step-dot {
+            width: 32px; height: 4px;
+            border-radius: 4px;
+            background: rgba(255,255,255,0.08);
+            transition: all 0.3s;
+        }
+        .step-dot.active {
+            background: linear-gradient(135deg, #4f46e5, #06b6d4);
+            width: 48px;
+        }
+        .step-dot.done {
+            background: #10b981;
+        }
+
+        /* Form */
+        .signup-form {
+            margin-top: 4px;
+        }
         .form-group {
-            margin-bottom: 1.1em;
-            display: flex; flex-direction: column;
+            margin-bottom: 18px;
+            animation: fieldAppear 0.4s ease-out both;
         }
-        .form-group label {
-            font-size: 1em;
-            color: #284674;
+        .form-group:nth-child(1) { animation-delay: 0.1s; }
+        .form-group:nth-child(2) { animation-delay: 0.15s; }
+        .form-group:nth-child(3) { animation-delay: 0.2s; }
+        @keyframes fieldAppear {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        .form-label {
+            display: block;
+            font-size: 0.82em;
             font-weight: 600;
-            margin-bottom: 0.4em;
+            color: #94a3b8;
+            margin-bottom: 8px;
+            letter-spacing: 0.02em;
         }
-        .form-group input {
-            padding: .72em 1em;
-            font-size:1em;
-            border: 1px solid #ccd7eb;
-            border-radius: 8px;
-            transition: border .15s;
+        .input-wrapper {
+            position: relative;
+        }
+        .input-wrapper i.field-icon {
+            position: absolute;
+            left: 14px;
+            top: 50%;
+            transform: translateY(-50%);
+            color: #475569;
+            font-size: 0.95em;
+            transition: color 0.2s;
+            pointer-events: none;
+        }
+        .form-input {
+            width: 100%;
+            padding: 13px 14px 13px 42px;
+            background: rgba(255, 255, 255, 0.04);
+            border: 1px solid rgba(255, 255, 255, 0.08);
+            border-radius: 10px;
+            color: #e2e8f0;
+            font-family: inherit;
+            font-size: 0.92em;
+            transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
             outline: none;
         }
-        .form-group input:focus {
-            border-color: #38a3a5;
+        .form-input::placeholder {
+            color: #475569;
         }
-        .field-help-text {
-            color: #5578a3;
-            font-size: .97em;
-            margin: .35em 0 0 0;
+        .form-input:focus {
+            border-color: #4f46e5;
+            background: rgba(79, 70, 229, 0.05);
+            box-shadow: 0 0 0 3px rgba(79, 70, 229, 0.15);
         }
-        .errorlist, .form-group .errorlist,
-        .form-group .error-list {margin:0;padding:0;list-style:none;}
-        .form-group .error-list span, .form-group .errorlist li {
-            color: #e06363;
-            font-size: .97em;
-            margin-top: .10em;
-            display:block;
+        .input-wrapper:focus-within i.field-icon {
+            color: #818cf8;
         }
-        .form-actions {
-            margin-top: 0.8em;
-            text-align:center;
-        }
-        .btn-primary {
-            background: linear-gradient(90deg,#38a3a5 44%, #1ebe67 90%);
-            color: #fff;
-            font-weight:600;
+
+        /* Password toggle */
+        .password-toggle {
+            position: absolute;
+            right: 14px;
+            top: 50%;
+            transform: translateY(-50%);
+            background: none;
             border: none;
-            border-radius: 9px;
-            padding: .92em 0;
-            font-size:1.04em;
-            box-shadow: 0 3px 12px -2px #38a3a544;
-            cursor:pointer;
-            transition: background .18s;
+            color: #475569;
+            cursor: pointer;
+            padding: 4px;
+            font-size: 0.95em;
+            transition: color 0.2s;
         }
-        .btn-primary:hover {
-            background: linear-gradient(90deg,#1ebe67 15%, #38a3a5 90%);
+        .password-toggle:hover {
+            color: #94a3b8;
         }
-        .auth-footer-link {
-            margin-top: 1.6em;
-            color: #334052;
-            font-size: 1em;
-            text-align:center;
+
+        /* Password strength */
+        .password-strength {
+            display: flex;
+            gap: 4px;
+            margin-top: 10px;
         }
-        .auth-footer-link a {
-            color: #38a3a5;
+        .strength-bar {
+            flex: 1;
+            height: 3px;
+            border-radius: 3px;
+            background: rgba(255,255,255,0.08);
+            transition: all 0.3s;
+        }
+        .strength-bar.weak { background: #ef4444; }
+        .strength-bar.medium { background: #f59e0b; }
+        .strength-bar.strong { background: #10b981; }
+
+        .password-hint {
+            font-size: 0.75em;
+            color: #475569;
+            margin-top: 8px;
+            line-height: 1.5;
+        }
+        .password-hint ul {
+            list-style: none;
+            padding: 0;
+            margin: 4px 0 0;
+        }
+        .password-hint li {
+            padding: 2px 0;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+        .password-hint li i {
+            font-size: 0.85em;
+            width: 14px;
+            text-align: center;
+        }
+        .password-hint li.pass { color: #10b981; }
+        .password-hint li.fail { color: #64748b; }
+
+        /* Errors */
+        .field-errors {
+            margin-top: 8px;
+        }
+        .field-errors span {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            color: #fca5a5;
+            font-size: 0.8em;
+            font-weight: 500;
+            padding: 4px 0;
+        }
+        .field-errors span i {
+            color: #ef4444;
+            font-size: 0.85em;
+            flex-shrink: 0;
+        }
+        .form-errors {
+            background: rgba(239, 68, 68, 0.1);
+            border: 1px solid rgba(239, 68, 68, 0.2);
+            border-radius: 10px;
+            padding: 12px 16px;
+            margin-bottom: 20px;
+            animation: shake 0.4s ease;
+        }
+        @keyframes shake {
+            0%, 100% { transform: translateX(0); }
+            25% { transform: translateX(-6px); }
+            75% { transform: translateX(6px); }
+        }
+        .form-errors span {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            color: #fca5a5;
+            font-size: 0.84em;
+            font-weight: 500;
+        }
+        .form-errors span i {
+            color: #ef4444;
+            flex-shrink: 0;
+        }
+
+        /* Input valid/invalid states */
+        .form-input.valid {
+            border-color: #10b981;
+        }
+        .form-input.invalid {
+            border-color: #ef4444;
+        }
+        .input-status {
+            position: absolute;
+            right: 14px;
+            top: 50%;
+            transform: translateY(-50%);
+            font-size: 0.9em;
+            opacity: 0;
+            transition: all 0.2s;
+        }
+        .input-status.visible { opacity: 1; }
+        .input-status.valid-icon { color: #10b981; }
+        .input-status.invalid-icon { color: #ef4444; }
+
+        /* Submit */
+        .btn-signup {
+            width: 100%;
+            padding: 14px 24px;
+            background: linear-gradient(135deg, #4f46e5, #6366f1);
+            color: #fff;
+            border: none;
+            border-radius: 10px;
+            font-family: inherit;
+            font-size: 0.95em;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+            position: relative;
+            overflow: hidden;
+            margin-top: 6px;
+        }
+        .btn-signup::before {
+            content: '';
+            position: absolute;
+            inset: 0;
+            background: linear-gradient(135deg, transparent, rgba(255,255,255,0.1));
+            opacity: 0;
+            transition: opacity 0.25s;
+        }
+        .btn-signup:hover {
+            transform: translateY(-1px);
+            box-shadow: 0 8px 24px rgba(79, 70, 229, 0.4);
+        }
+        .btn-signup:hover::before { opacity: 1; }
+        .btn-signup:active { transform: translateY(0); }
+        .btn-signup .btn-text {
+            position: relative;
+            z-index: 1;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+        }
+
+        /* Terms */
+        .terms-text {
+            text-align: center;
+            font-size: 0.75em;
+            color: #475569;
+            margin-top: 16px;
+            line-height: 1.6;
+        }
+        .terms-text a {
+            color: #818cf8;
             text-decoration: none;
-            font-weight:600;
-            transition:color .13s;
         }
-        .auth-footer-link a:hover { color: #1ebe67; }
+        .terms-text a:hover {
+            color: #a5b4fc;
+            text-decoration: underline;
+        }
+
+        /* Footer */
+        .signup-footer {
+            text-align: center;
+            margin-top: 24px;
+            padding-top: 20px;
+            border-top: 1px solid rgba(255, 255, 255, 0.06);
+        }
+        .signup-footer p {
+            font-size: 0.85em;
+            color: #64748b;
+        }
+        .signup-footer a {
+            color: #818cf8;
+            text-decoration: none;
+            font-weight: 600;
+            transition: color 0.2s;
+        }
+        .signup-footer a:hover {
+            color: #a5b4fc;
+        }
+
+        /* ===== RESPONSIVE ===== */
+        @media (max-width: 480px) {
+            .signup-card {
+                padding: 28px 22px 24px;
+                border-radius: 16px;
+            }
+            .signup-logo-icon {
+                width: 48px; height: 48px;
+                font-size: 20px;
+                border-radius: 12px;
+            }
+            .signup-logo-text {
+                font-size: 1.3em;
+            }
+            .form-input {
+                padding: 12px 14px 12px 40px;
+            }
+            .btn-signup {
+                padding: 13px 20px;
+            }
+        }
+        @media (max-height: 750px) {
+            .signup-card {
+                padding: 24px 24px 20px;
+            }
+            .signup-logo {
+                margin-bottom: 16px;
+            }
+            .form-group {
+                margin-bottom: 14px;
+            }
+            .signup-logo-icon {
+                width: 44px; height: 44px;
+                font-size: 18px;
+                margin-bottom: 10px;
+            }
+        }
+
+        ::-webkit-scrollbar { width: 0; }
     </style>
 </head>
-<body class="auth-page">
-    <div class="auth-container">
-        <h2 class="auth-title">Создание аккаунта</h2>
-        <form method="post" class="form-styled" novalidate>
-            {% csrf_token %}
+<body>
+    <!-- Animated Background -->
+    <div class="bg-pattern">
+        <div class="circle"></div>
+        <div class="circle"></div>
+        <div class="circle"></div>
+    </div>
+    <div class="bg-grid"></div>
+
+    <!-- Signup Card -->
+    <div class="signup-wrapper">
+        <div class="signup-card">
+            <!-- Logo -->
+            <div class="signup-logo">
+                <div class="signup-logo-icon">
+                    <i class="fas fa-bolt"></i>
+                </div>
+                <div class="signup-logo-text">
+                    Bidder<span class="pro">PRO</span>
+                </div>
+                <div class="signup-subtitle">Создайте аккаунт для начала работы</div>
+            </div>
+
+            <!-- Steps -->
+            <div class="signup-steps">
+                <div class="step-dot active"></div>
+                <div class="step-dot"></div>
+                <div class="step-dot"></div>
+            </div>
+
+            <!-- Non-field errors -->
             {% if form.non_field_errors %}
-                <div class="error-list" style="margin-bottom:.6em;">
+                <div class="form-errors">
                     {% for error in form.non_field_errors %}
-                        <span>{{ error }}</span>
+                        <span><i class="fas fa-exclamation-circle"></i> {{ error }}</span>
                     {% endfor %}
                 </div>
             {% endif %}
-            <!-- Поле "Имя пользователя" -->
-            <div class="form-group">
-                <label for="{{ form.username.id_for_label }}">{{ form.username.label }}</label>
-                {{ form.username }}
-                {% if form.username.errors %}
-                    <div class="error-list">
-                        {% for error in form.username.errors %}
-                            <span>{{ error }}</span>
-                        {% endfor %}
+
+            <!-- Form -->
+            <form method="post" class="signup-form" novalidate>
+                {% csrf_token %}
+
+                <!-- Username -->
+                <div class="form-group">
+                    <label class="form-label">Имя пользователя</label>
+                    <div class="input-wrapper">
+                        <input
+                            type="text"
+                            name="username"
+                            id="id_username"
+                            class="form-input"
+                            placeholder="Придумайте логин"
+                            autocomplete="username"
+                            autofocus
+                            value="{{ form.username.value|default:'' }}"
+                        >
+                        <i class="fas fa-user field-icon"></i>
+                        <span class="input-status" id="usernameStatus"></span>
                     </div>
-                {% endif %}
-            </div>
-            <!-- Поле "Пароль" -->
-            <div class="form-group">
-                <label for="{{ form.password1.id_for_label }}">{{ form.password1.label }}</label>
-                {{ form.password1 }}
-                <div class="field-help-text" style="display:block;">{{ form.password1.help_text|safe }}</div>
-                {% if form.password1.errors %}
-                    <div class="error-list">
-                        {% for error in form.password1.errors %}
-                            <span>{{ error }}</span>
-                        {% endfor %}
+                    {% if form.username.errors %}
+                        <div class="field-errors">
+                            {% for error in form.username.errors %}
+                                <span><i class="fas fa-exclamation-circle"></i> {{ error }}</span>
+                            {% endfor %}
+                        </div>
+                    {% endif %}
+                </div>
+
+                <!-- Password -->
+                <div class="form-group">
+                    <label class="form-label">Пароль</label>
+                    <div class="input-wrapper">
+                        <input
+                            type="password"
+                            name="password1"
+                            id="id_password1"
+                            class="form-input"
+                            placeholder="Минимум 8 символов"
+                            autocomplete="new-password"
+                        >
+                        <i class="fas fa-lock field-icon"></i>
+                        <button type="button" class="password-toggle" onclick="togglePassword('id_password1', 'eye1')" title="Показать пароль">
+                            <i class="fas fa-eye" id="eye1"></i>
+                        </button>
                     </div>
-                {% endif %}
-            </div>
-            <!-- Поле "Подтверждение пароля" -->
-            <div class="form-group">
-                <label for="{{ form.password2.id_for_label }}">{{ form.password2.label }}</label>
-                {{ form.password2 }}
-                {% if form.password2.errors %}
-                    <div class="error-list">
-                        {% for error in form.password2.errors %}
-                            <span>{{ error }}</span>
-                        {% endfor %}
+                    <div class="password-strength" id="strengthBars">
+                        <div class="strength-bar" id="bar1"></div>
+                        <div class="strength-bar" id="bar2"></div>
+                        <div class="strength-bar" id="bar3"></div>
+                        <div class="strength-bar" id="bar4"></div>
                     </div>
-                {% endif %}
+                    <div class="password-hint" id="passwordHint">
+                        <ul>
+                            <li id="rule-length" class="fail"><i class="fas fa-circle"></i> Минимум 8 символов</li>
+                            <li id="rule-number" class="fail"><i class="fas fa-circle"></i> Содержит цифру</li>
+                            <li id="rule-letter" class="fail"><i class="fas fa-circle"></i> Содержит букву</li>
+                        </ul>
+                    </div>
+                    {% if form.password1.errors %}
+                        <div class="field-errors">
+                            {% for error in form.password1.errors %}
+                                <span><i class="fas fa-exclamation-circle"></i> {{ error }}</span>
+                            {% endfor %}
+                        </div>
+                    {% endif %}
+                </div>
+
+                <!-- Confirm Password -->
+                <div class="form-group">
+                    <label class="form-label">Подтвердите пароль</label>
+                    <div class="input-wrapper">
+                        <input
+                            type="password"
+                            name="password2"
+                            id="id_password2"
+                            class="form-input"
+                            placeholder="Повторите пароль"
+                            autocomplete="new-password"
+                        >
+                        <i class="fas fa-shield-halved field-icon"></i>
+                        <button type="button" class="password-toggle" onclick="togglePassword('id_password2', 'eye2')" title="Показать пароль">
+                            <i class="fas fa-eye" id="eye2"></i>
+                        </button>
+                    </div>
+                    <div class="field-errors" id="matchError" style="display:none;">
+                        <span><i class="fas fa-exclamation-circle"></i> Пароли не совпадают</span>
+                    </div>
+                    {% if form.password2.errors %}
+                        <div class="field-errors">
+                            {% for error in form.password2.errors %}
+                                <span><i class="fas fa-exclamation-circle"></i> {{ error }}</span>
+                            {% endfor %}
+                        </div>
+                    {% endif %}
+                </div>
+
+                <button type="submit" class="btn-signup" id="submitBtn">
+                    <span class="btn-text">
+                        <i class="fas fa-user-plus"></i>
+                        Создать аккаунт
+                    </span>
+                </button>
+
+                <div class="terms-text">
+                    Нажимая «Создать аккаунт», вы соглашаетесь с
+                    <a href="#">условиями использования</a>
+                </div>
+            </form>
+
+            <!-- Footer -->
+            <div class="signup-footer">
+                <p>Уже есть аккаунт? <a href="{% url 'login' %}">Войти</a></p>
             </div>
-            <div class="form-actions">
-                <button type="submit" class="btn btn-primary" style="width: 100%;">Зарегистрироваться</button>
-            </div>
-        </form>
-        <p class="auth-footer-link">
-            Уже есть аккаунт? <a href="{% url 'login' %}">Войти</a>
-        </p>
+        </div>
     </div>
+
+    <script>
+        // Toggle password visibility
+        function togglePassword(inputId, iconId) {
+            const input = document.getElementById(inputId);
+            const icon = document.getElementById(iconId);
+            if (input.type === 'password') {
+                input.type = 'text';
+                icon.className = 'fas fa-eye-slash';
+            } else {
+                input.type = 'password';
+                icon.className = 'fas fa-eye';
+            }
+        }
+
+        // Password strength checker
+        const pw1 = document.getElementById('id_password1');
+        const pw2 = document.getElementById('id_password2');
+        const bars = [
+            document.getElementById('bar1'),
+            document.getElementById('bar2'),
+            document.getElementById('bar3'),
+            document.getElementById('bar4')
+        ];
+        const ruleLength = document.getElementById('rule-length');
+        const ruleNumber = document.getElementById('rule-number');
+        const ruleLetter = document.getElementById('rule-letter');
+        const matchError = document.getElementById('matchError');
+        const steps = document.querySelectorAll('.step-dot');
+
+        function updateSteps() {
+            const username = document.getElementById('id_username').value;
+            const pass1 = pw1.value;
+            const pass2 = pw2.value;
+
+            // Step 1: username
+            if (username.length >= 1) {
+                steps[0].classList.add('done');
+                steps[0].classList.remove('active');
+                steps[1].classList.add('active');
+            } else {
+                steps[0].classList.remove('done');
+                steps[0].classList.add('active');
+                steps[1].classList.remove('active');
+                steps[2].classList.remove('active', 'done');
+                return;
+            }
+
+            // Step 2: password
+            if (pass1.length >= 8) {
+                steps[1].classList.add('done');
+                steps[1].classList.remove('active');
+                steps[2].classList.add('active');
+            } else {
+                steps[1].classList.remove('done');
+                steps[2].classList.remove('active', 'done');
+                return;
+            }
+
+            // Step 3: confirm
+            if (pass2.length >= 1 && pass1 === pass2) {
+                steps[2].classList.add('done');
+                steps[2].classList.remove('active');
+            } else {
+                steps[2].classList.remove('done');
+            }
+        }
+
+        function checkStrength(val) {
+            let score = 0;
+            const hasLength = val.length >= 8;
+            const hasNumber = /\d/.test(val);
+            const hasLetter = /[a-zA-Zа-яА-Я]/.test(val);
+            const hasSpecial = /[^a-zA-Zа-яА-Я0-9]/.test(val);
+
+            if (hasLength) score++;
+            if (hasNumber) score++;
+            if (hasLetter) score++;
+            if (hasSpecial) score++;
+
+            // Update rules
+            updateRule(ruleLength, hasLength);
+            updateRule(ruleNumber, hasNumber);
+            updateRule(ruleLetter, hasLetter);
+
+            // Update bars
+            bars.forEach((bar, i) => {
+                bar.className = 'strength-bar';
+                if (val.length === 0) return;
+                if (i < score) {
+                    if (score <= 1) bar.classList.add('weak');
+                    else if (score <= 2) bar.classList.add('medium');
+                    else bar.classList.add('strong');
+                }
+            });
+        }
+
+        function updateRule(el, pass) {
+            if (pass) {
+                el.className = 'pass';
+                el.querySelector('i').className = 'fas fa-check-circle';
+            } else {
+                el.className = 'fail';
+                el.querySelector('i').className = 'fas fa-circle';
+            }
+        }
+
+        function checkMatch() {
+            if (pw2.value.length === 0) {
+                matchError.style.display = 'none';
+                pw2.classList.remove('valid', 'invalid');
+                return;
+            }
+            if (pw1.value === pw2.value) {
+                matchError.style.display = 'none';
+                pw2.classList.add('valid');
+                pw2.classList.remove('invalid');
+            } else {
+                matchError.style.display = 'block';
+                pw2.classList.add('invalid');
+                pw2.classList.remove('valid');
+            }
+        }
+
+        // Events
+        pw1.addEventListener('input', function() {
+            checkStrength(this.value);
+            checkMatch();
+            updateSteps();
+        });
+
+        pw2.addEventListener('input', function() {
+            checkMatch();
+            updateSteps();
+        });
+
+        document.getElementById('id_username').addEventListener('input', function() {
+            updateSteps();
+            if (this.value.length >= 3) {
+                this.classList.add('valid');
+                this.classList.remove('invalid');
+            } else if (this.value.length > 0) {
+                this.classList.add('invalid');
+                this.classList.remove('valid');
+            } else {
+                this.classList.remove('valid', 'invalid');
+            }
+        });
+
+        // Focus animations
+        document.querySelectorAll('.form-input').forEach(function(input) {
+            input.addEventListener('focus', function() {
+                this.closest('.form-group').classList.add('focused');
+            });
+            input.addEventListener('blur', function() {
+                this.closest('.form-group').classList.remove('focused');
+            });
+        });
+
+        // Init steps
+        updateSteps();
+    </script>
 </body>
 </html>
