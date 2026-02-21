@@ -1,3 +1,4 @@
+
 {% extends 'base.html' %}
 {% load static %}
 
@@ -91,9 +92,7 @@
             <h3 id="modal-title">Массовое редактирование</h3>
             <button class="modal-close" id="modal-close"><i class="fas fa-times"></i></button>
         </div>
-        <div class="modal-body" id="modal-body">
-            <!-- Dynamic content -->
-        </div>
+        <div class="modal-body" id="modal-body"></div>
         <div class="modal-footer">
             <button class="btn btn-secondary" id="modal-cancel">Отмена</button>
             <button class="btn btn-primary" id="modal-apply">
@@ -154,7 +153,7 @@
 <!-- ===== TASK GRID ===== -->
 <div class="task-grid" id="task-grid">
     {% for task in tasks %}
-        <div class="task-card {% if not task.is_active %}is-inactive{% endif %}"
+        <div class="task-card-row {% if not task.is_active %}is-inactive{% endif %}"
              data-task-id="{{ task.pk }}"
              data-account-id="{{ task.avito_account.pk }}"
              data-title="{{ task.title|default:'' }}"
@@ -168,94 +167,97 @@
              data-min-price="{{ task.min_price }}"
              data-bid-step="{{ task.bid_step }}">
 
-            <!-- Checkbox -->
+            <!-- Checkbox СЛЕВА -->
             <label class="tc-checkbox-wrap" onclick="event.stopPropagation()">
                 <input type="checkbox" class="task-checkbox" data-task-id="{{ task.pk }}">
                 <span class="tc-checkbox"><i class="fas fa-check"></i></span>
             </label>
 
-            <!-- Image -->
-            <div class="tc-image">
-                {% if task.image_url %}
-                    <img src="{{ task.image_url }}" alt="{{ task.title }}" loading="lazy">
-                {% else %}
-                    <div class="tc-image-placeholder"><i class="fas fa-image"></i></div>
-                {% endif %}
-                <div class="tc-status-badge {% if task.is_active %}active{% else %}paused{% endif %}">
-                    <span class="tc-status-dot"></span>
-                    {% if task.is_active %}Активен{% else %}Пауза{% endif %}
-                </div>
-            </div>
-
-            <!-- Body -->
-            <div class="tc-body">
-                <div class="tc-header">
-                    <h3 class="tc-title">
-                        <a href="{% url 'task-detail' pk=task.pk %}">
-                            {% if task.title and task.title != "Название не найдено" %}
-                                {{ task.title|truncatechars:45 }}
-                            {% else %}
-                                Объявление #{{ task.ad_id }}
-                            {% endif %}
-                        </a>
-                    </h3>
-                    {% if task.title and task.title != "Название не найдено" %}
-                        <span class="tc-ad-id">#{{ task.ad_id }}</span>
+            <!-- Card -->
+            <div class="task-card">
+                <!-- Image -->
+                <div class="tc-image">
+                    {% if task.image_url %}
+                        <img src="{{ task.image_url }}" alt="{{ task.title }}" loading="lazy">
+                    {% else %}
+                        <div class="tc-image-placeholder"><i class="fas fa-image"></i></div>
                     {% endif %}
-                </div>
-
-                {% if task.avito_account %}
-                    <div class="tc-account">
-                        <div class="tc-account-avatar">{{ task.avito_account.name|default:"?"|first|upper }}</div>
-                        <span>{{ task.avito_account.name|default:"Без названия" }}</span>
-                    </div>
-                {% endif %}
-
-                <div class="tc-metrics">
-                    <div class="tc-metric">
-                        <div class="tc-metric-label">Позиция</div>
-                        <div class="tc-metric-value">
-                            {% if task.current_position %}
-                                <span class="tc-position {% if task.current_position >= task.target_position_min and task.current_position <= task.target_position_max %}in-target{% elif task.current_position > task.target_position_max %}below-target{% else %}above-target{% endif %}">{{ task.current_position }}</span>
-                                <span class="tc-target-range">/ {{ task.target_position_min }}–{{ task.target_position_max }}</span>
-                            {% else %}
-                                <span class="tc-no-data">—</span>
-                            {% endif %}
-                        </div>
-                    </div>
-                    <div class="tc-metric">
-                        <div class="tc-metric-label">Ставка</div>
-                        <div class="tc-metric-value">
-                            {% if task.current_price %}
-                                <span class="tc-price">{{ task.current_price }} ₽</span>
-                                <span class="tc-max-price">/ {{ task.max_price }} ₽</span>
-                            {% else %}
-                                <span class="tc-no-data">—</span>
-                            {% endif %}
-                        </div>
+                    <div class="tc-status-badge {% if task.is_active %}active{% else %}paused{% endif %}">
+                        <span class="tc-status-dot"></span>
+                        {% if task.is_active %}Активен{% else %}Пауза{% endif %}
                     </div>
                 </div>
 
-                <div class="tc-schedule">
-                    <i class="fas fa-clock"></i>
-                    <div class="tc-schedule-chips">
-                        {% if task.schedule_list %}
-                            {% for interval in task.schedule_list %}
-                                <span class="tc-schedule-chip">{{ interval.start }}–{{ interval.end }}</span>
-                            {% endfor %}
-                        {% else %}
-                            <span class="tc-schedule-chip always">24/7</span>
+                <!-- Body -->
+                <div class="tc-body">
+                    <div class="tc-header">
+                        <h3 class="tc-title">
+                            <a href="{% url 'task-detail' pk=task.pk %}">
+                                {% if task.title and task.title != "Название не найдено" %}
+                                    {{ task.title|truncatechars:45 }}
+                                {% else %}
+                                    Объявление #{{ task.ad_id }}
+                                {% endif %}
+                            </a>
+                        </h3>
+                        {% if task.title and task.title != "Название не найдено" %}
+                            <span class="tc-ad-id">#{{ task.ad_id }}</span>
                         {% endif %}
                     </div>
-                </div>
-            </div>
 
-            <!-- Footer -->
-            <div class="tc-footer">
-                <div class="tc-actions">
-                    <a href="{% url 'task-detail' pk=task.pk %}" class="tc-action-btn" title="Подробнее"><i class="fas fa-chart-line"></i></a>
-                    <a href="{% url 'task-edit' pk=task.pk %}" class="tc-action-btn" title="Редактировать"><i class="fas fa-pencil-alt"></i></a>
-                    <a href="{% url 'task-delete' pk=task.pk %}" class="tc-action-btn danger" title="Удалить"><i class="fas fa-trash-alt"></i></a>
+                    {% if task.avito_account %}
+                        <div class="tc-account">
+                            <div class="tc-account-avatar">{{ task.avito_account.name|default:"?"|first|upper }}</div>
+                            <span>{{ task.avito_account.name|default:"Без названия" }}</span>
+                        </div>
+                    {% endif %}
+
+                    <div class="tc-metrics">
+                        <div class="tc-metric">
+                            <div class="tc-metric-label">Позиция</div>
+                            <div class="tc-metric-value">
+                                {% if task.current_position %}
+                                    <span class="tc-position {% if task.current_position >= task.target_position_min and task.current_position <= task.target_position_max %}in-target{% elif task.current_position > task.target_position_max %}below-target{% else %}above-target{% endif %}">{{ task.current_position }}</span>
+                                    <span class="tc-target-range">/ {{ task.target_position_min }}–{{ task.target_position_max }}</span>
+                                {% else %}
+                                    <span class="tc-no-data">—</span>
+                                {% endif %}
+                            </div>
+                        </div>
+                        <div class="tc-metric">
+                            <div class="tc-metric-label">Ставка</div>
+                            <div class="tc-metric-value">
+                                {% if task.current_price %}
+                                    <span class="tc-price">{{ task.current_price }} ₽</span>
+                                    <span class="tc-max-price">/ {{ task.max_price }} ₽</span>
+                                {% else %}
+                                    <span class="tc-no-data">—</span>
+                                {% endif %}
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="tc-schedule">
+                        <i class="fas fa-clock"></i>
+                        <div class="tc-schedule-chips">
+                            {% if task.schedule_list %}
+                                {% for interval in task.schedule_list %}
+                                    <span class="tc-schedule-chip">{{ interval.start }}–{{ interval.end }}</span>
+                                {% endfor %}
+                            {% else %}
+                                <span class="tc-schedule-chip always">24/7</span>
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Footer -->
+                <div class="tc-footer">
+                    <div class="tc-actions">
+                        <a href="{% url 'task-detail' pk=task.pk %}" class="tc-action-btn" title="Подробнее"><i class="fas fa-chart-line"></i></a>
+                        <a href="{% url 'task-edit' pk=task.pk %}" class="tc-action-btn" title="Редактировать"><i class="fas fa-pencil-alt"></i></a>
+                        <a href="{% url 'task-delete' pk=task.pk %}" class="tc-action-btn danger" title="Удалить"><i class="fas fa-trash-alt"></i></a>
+                    </div>
                 </div>
             </div>
         </div>
@@ -280,344 +282,169 @@
 <style>
     /* ===== BULK ACTION BAR ===== */
     .bulk-bar {
-        position: sticky;
-        top: 64px;
-        z-index: 40;
-        background: #fff;
-        border: 1px solid var(--gray-200);
-        border-radius: var(--radius-md);
-        padding: 12px 20px;
-        margin-bottom: 20px;
-        display: none;
-        align-items: center;
-        justify-content: space-between;
-        gap: 16px;
-        box-shadow: var(--shadow-md);
+        position: sticky; top: 64px; z-index: 40;
+        background: #fff; border: 1px solid var(--gray-200);
+        border-radius: var(--radius-md); padding: 12px 20px;
+        margin-bottom: 20px; display: none;
+        align-items: center; justify-content: space-between;
+        gap: 16px; box-shadow: var(--shadow-md);
         animation: slideDown 0.25s ease-out;
     }
     @keyframes slideDown {
         from { opacity: 0; transform: translateY(-8px); }
         to { opacity: 1; transform: translateY(0); }
     }
-    .bulk-bar.visible {
-        display: flex;
-    }
-    .bulk-bar-left {
-        display: flex;
-        align-items: center;
-        gap: 12px;
-    }
-    .bulk-count {
-        font-size: 0.88em;
-        color: var(--gray-600);
-    }
-    .bulk-count strong {
-        color: var(--primary);
-        font-weight: 700;
-    }
-    .bulk-bar-actions {
-        display: flex;
-        align-items: center;
-        gap: 6px;
-        flex-wrap: wrap;
-    }
-    .bulk-divider {
-        width: 1px;
-        height: 24px;
-        background: var(--gray-200);
-        margin: 0 4px;
-    }
+    .bulk-bar.visible { display: flex; }
+    .bulk-bar-left { display: flex; align-items: center; gap: 12px; }
+    .bulk-count { font-size: 0.88em; color: var(--gray-600); }
+    .bulk-count strong { color: var(--primary); font-weight: 700; }
+    .bulk-bar-actions { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
+    .bulk-divider { width: 1px; height: 24px; background: var(--gray-200); margin: 0 4px; }
     .bulk-btn {
-        display: inline-flex;
-        align-items: center;
-        gap: 6px;
-        padding: 7px 14px;
-        border-radius: var(--radius-sm);
-        border: 1px solid var(--gray-200);
-        background: #fff;
-        color: var(--gray-600);
-        font-family: inherit;
-        font-size: 0.82em;
-        font-weight: 600;
-        cursor: pointer;
-        transition: var(--transition);
-        white-space: nowrap;
+        display: inline-flex; align-items: center; gap: 6px;
+        padding: 7px 14px; border-radius: var(--radius-sm);
+        border: 1px solid var(--gray-200); background: #fff;
+        color: var(--gray-600); font-family: inherit;
+        font-size: 0.82em; font-weight: 600; cursor: pointer;
+        transition: var(--transition); white-space: nowrap;
     }
-    .bulk-btn:hover {
-        background: var(--gray-50);
-        border-color: var(--gray-300);
-    }
-    .bulk-btn-activate:hover {
-        background: var(--success-bg);
-        color: #059669;
-        border-color: #a7f3d0;
-    }
-    .bulk-btn-pause:hover {
-        background: var(--warning-bg);
-        color: #d97706;
-        border-color: #fde68a;
-    }
-    .bulk-btn-edit:hover {
-        background: var(--primary-bg);
-        color: var(--primary);
-        border-color: #c7d2fe;
-    }
-    .bulk-btn-danger {
-        color: var(--gray-500);
-    }
-    .bulk-btn-danger:hover {
-        background: var(--danger-bg);
-        color: var(--danger);
-        border-color: #fecaca;
-    }
+    .bulk-btn:hover { background: var(--gray-50); border-color: var(--gray-300); }
+    .bulk-btn-activate:hover { background: var(--success-bg); color: #059669; border-color: #a7f3d0; }
+    .bulk-btn-pause:hover { background: var(--warning-bg); color: #d97706; border-color: #fde68a; }
+    .bulk-btn-edit:hover { background: var(--primary-bg); color: var(--primary); border-color: #c7d2fe; }
+    .bulk-btn-danger { color: var(--gray-500); }
+    .bulk-btn-danger:hover { background: var(--danger-bg); color: var(--danger); border-color: #fecaca; }
     .bulk-close {
-        width: 34px; height: 34px;
-        border-radius: var(--radius-sm);
-        border: none;
-        background: transparent;
-        color: var(--gray-400);
-        cursor: pointer;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        transition: var(--transition);
-        flex-shrink: 0;
+        width: 34px; height: 34px; border-radius: var(--radius-sm);
+        border: none; background: transparent; color: var(--gray-400);
+        cursor: pointer; display: flex; align-items: center;
+        justify-content: center; transition: var(--transition); flex-shrink: 0;
     }
-    .bulk-close:hover {
-        background: var(--gray-100);
-        color: var(--gray-600);
-    }
+    .bulk-close:hover { background: var(--gray-100); color: var(--gray-600); }
 
     /* ===== CHECKBOX STYLES ===== */
     .bulk-select-all-wrap,
     .tc-checkbox-wrap {
-        cursor: pointer;
-        display: flex;
-        align-items: center;
-        user-select: none;
+        cursor: pointer; display: flex; align-items: center; user-select: none;
     }
     .bulk-select-all-wrap input,
-    .tc-checkbox-wrap input {
-        display: none;
-    }
+    .tc-checkbox-wrap input { display: none; }
     .bulk-checkbox,
     .tc-checkbox {
-        width: 22px; height: 22px;
-        border: 2px solid var(--gray-300);
-        border-radius: 6px;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        transition: var(--transition);
-        background: #fff;
+        width: 22px; height: 22px; border: 2px solid var(--gray-300);
+        border-radius: 6px; display: flex; align-items: center;
+        justify-content: center; transition: var(--transition); background: #fff;
     }
     .bulk-checkbox i,
     .tc-checkbox i {
-        font-size: 10px;
-        color: #fff;
-        opacity: 0;
-        transform: scale(0.5);
-        transition: all 0.15s;
+        font-size: 10px; color: #fff; opacity: 0;
+        transform: scale(0.5); transition: all 0.15s;
     }
     .bulk-select-all-wrap input:checked ~ .bulk-checkbox,
     .tc-checkbox-wrap input:checked ~ .tc-checkbox {
-        background: var(--primary);
-        border-color: var(--primary);
+        background: var(--primary); border-color: var(--primary);
         box-shadow: 0 2px 6px rgba(79,70,229,0.25);
     }
     .bulk-select-all-wrap input:checked ~ .bulk-checkbox i,
     .tc-checkbox-wrap input:checked ~ .tc-checkbox i {
-        opacity: 1;
-        transform: scale(1);
+        opacity: 1; transform: scale(1);
     }
     .bulk-checkbox:hover,
-    .tc-checkbox:hover {
-        border-color: var(--primary-light);
-    }
+    .tc-checkbox:hover { border-color: var(--primary-light); }
 
-    /* Card checkbox positioning */
-    .tc-checkbox-wrap {
-        position: absolute;
-        top: 12px;
-        right: 12px;
-        z-index: 10;
+    /* ===== CARD ROW WRAPPER — checkbox слева ===== */
+    .task-card-row {
+        display: flex;
+        align-items: flex-start;
+        gap: 10px;
+    }
+    .task-card-row > .tc-checkbox-wrap {
+        flex-shrink: 0;
+        margin-top: 14px;
         opacity: 0;
         transition: opacity 0.2s;
     }
-    .task-card:hover .tc-checkbox-wrap,
-    .task-card.selected .tc-checkbox-wrap {
+    .task-card-row:hover > .tc-checkbox-wrap,
+    .task-card-row.selected > .tc-checkbox-wrap {
         opacity: 1;
     }
-    .task-card {
-        position: relative;
+    .task-card-row > .task-card {
+        flex: 1;
+        min-width: 0;
     }
-    .task-card.selected {
+    .task-card-row.selected > .task-card {
         border-color: var(--primary-light);
         box-shadow: 0 0 0 2px rgba(79,70,229,0.15), var(--shadow-md);
-    }
-    .task-card.selected .tc-image::after {
-        content: '';
-        position: absolute;
-        inset: 0;
-        background: rgba(79,70,229,0.05);
-        pointer-events: none;
     }
 
     /* ===== MODAL ===== */
     .modal-overlay {
-        position: fixed;
-        inset: 0;
-        z-index: 1000;
-        background: rgba(0,0,0,0.4);
-        backdrop-filter: blur(4px);
-        display: none;
-        align-items: center;
-        justify-content: center;
-        padding: 20px;
+        position: fixed; inset: 0; z-index: 1000;
+        background: rgba(0,0,0,0.4); backdrop-filter: blur(4px);
+        display: none; align-items: center; justify-content: center; padding: 20px;
     }
-    .modal-overlay.visible {
-        display: flex;
-    }
+    .modal-overlay.visible { display: flex; }
     .modal-card {
-        background: #fff;
-        border-radius: var(--radius-lg);
-        width: 100%;
-        max-width: 480px;
-        box-shadow: var(--shadow-xl);
-        animation: modalIn 0.25s ease-out;
-        overflow: hidden;
+        background: #fff; border-radius: var(--radius-lg);
+        width: 100%; max-width: 480px; box-shadow: var(--shadow-xl);
+        animation: modalIn 0.25s ease-out; overflow: hidden;
     }
-    .modal-card-sm {
-        max-width: 400px;
-    }
+    .modal-card-sm { max-width: 400px; }
     @keyframes modalIn {
         from { opacity: 0; transform: scale(0.95) translateY(10px); }
         to { opacity: 1; transform: scale(1) translateY(0); }
     }
     .modal-header {
-        padding: 20px 24px;
-        border-bottom: 1px solid var(--gray-100);
-        display: flex;
-        align-items: center;
-        justify-content: space-between;
+        padding: 20px 24px; border-bottom: 1px solid var(--gray-100);
+        display: flex; align-items: center; justify-content: space-between;
     }
     .modal-header h3 {
-        font-size: 1.05em;
-        font-weight: 600;
-        color: var(--gray-800);
-        margin: 0;
-        display: flex;
-        align-items: center;
-        gap: 8px;
+        font-size: 1.05em; font-weight: 600; color: var(--gray-800);
+        margin: 0; display: flex; align-items: center; gap: 8px;
     }
-    .modal-header-danger {
-        background: var(--danger-bg);
-    }
-    .modal-header-danger h3 {
-        color: var(--danger);
-    }
+    .modal-header-danger { background: var(--danger-bg); }
+    .modal-header-danger h3 { color: var(--danger); }
     .modal-close {
-        width: 32px; height: 32px;
-        border: none;
-        background: transparent;
-        color: var(--gray-400);
-        cursor: pointer;
-        border-radius: var(--radius-sm);
-        display: flex;
-        align-items: center;
-        justify-content: center;
+        width: 32px; height: 32px; border: none; background: transparent;
+        color: var(--gray-400); cursor: pointer; border-radius: var(--radius-sm);
+        display: flex; align-items: center; justify-content: center;
         transition: var(--transition);
     }
-    .modal-close:hover {
-        background: var(--gray-100);
-        color: var(--gray-600);
-    }
-    .modal-body {
-        padding: 24px;
-    }
+    .modal-close:hover { background: var(--gray-100); color: var(--gray-600); }
+    .modal-body { padding: 24px; }
     .modal-footer {
-        padding: 16px 24px;
-        border-top: 1px solid var(--gray-100);
-        display: flex;
-        justify-content: flex-end;
-        gap: 10px;
-        background: var(--gray-50);
+        padding: 16px 24px; border-top: 1px solid var(--gray-100);
+        display: flex; justify-content: flex-end; gap: 10px; background: var(--gray-50);
     }
-    .modal-confirm-text {
-        font-size: 0.95em;
-        color: var(--gray-700);
-        margin-bottom: 8px;
-    }
-    .modal-confirm-warn {
-        font-size: 0.82em;
-        color: var(--danger);
-        font-weight: 500;
-    }
-
-    /* Modal form */
-    .modal-field {
-        margin-bottom: 18px;
-    }
-    .modal-field:last-child {
-        margin-bottom: 0;
-    }
+    .modal-confirm-text { font-size: 0.95em; color: var(--gray-700); margin-bottom: 8px; }
+    .modal-confirm-warn { font-size: 0.82em; color: var(--danger); font-weight: 500; }
+    .modal-field { margin-bottom: 18px; }
+    .modal-field:last-child { margin-bottom: 0; }
     .modal-field label {
-        display: block;
-        font-size: 0.85em;
-        font-weight: 600;
-        color: var(--gray-700);
-        margin-bottom: 8px;
+        display: block; font-size: 0.85em; font-weight: 600;
+        color: var(--gray-700); margin-bottom: 8px;
     }
     .modal-field .modal-input {
-        width: 100%;
-        padding: 11px 14px;
-        border: 1px solid var(--gray-300);
-        border-radius: var(--radius-sm);
-        font-family: inherit;
-        font-size: 0.9em;
-        color: var(--gray-800);
-        outline: none;
-        transition: var(--transition);
+        width: 100%; padding: 11px 14px; border: 1px solid var(--gray-300);
+        border-radius: var(--radius-sm); font-family: inherit; font-size: 0.9em;
+        color: var(--gray-800); outline: none; transition: var(--transition);
     }
     .modal-field .modal-input:focus {
-        border-color: var(--primary);
-        box-shadow: 0 0 0 3px rgba(79,70,229,0.1);
+        border-color: var(--primary); box-shadow: 0 0 0 3px rgba(79,70,229,0.1);
     }
-    .modal-field-row {
-        display: grid;
-        grid-template-columns: 1fr 1fr;
-        gap: 12px;
-    }
-    .modal-hint {
-        font-size: 0.78em;
-        color: var(--gray-400);
-        margin-top: 6px;
-    }
+    .modal-field-row { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+    .modal-hint { font-size: 0.78em; color: var(--gray-400); margin-top: 6px; }
 
     /* ===== FILTERS BAR ===== */
     .filters-bar {
-        display: flex;
-        align-items: center;
-        justify-content: space-between;
-        gap: 16px;
-        margin-bottom: 24px;
-        flex-wrap: wrap;
+        display: flex; align-items: center; justify-content: space-between;
+        gap: 16px; margin-bottom: 24px; flex-wrap: wrap;
     }
     .filters-left {
-        display: flex;
-        align-items: center;
-        gap: 8px;
-        flex: 1;
-        min-width: 0;
-        overflow-x: auto;
-        padding-bottom: 4px;
+        display: flex; align-items: center; gap: 8px;
+        flex: 1; min-width: 0; overflow-x: auto; padding-bottom: 4px;
     }
-    .filters-right {
-        display: flex;
-        align-items: center;
-        gap: 10px;
-        flex-shrink: 0;
-    }
+    .filters-right { display: flex; align-items: center; gap: 10px; flex-shrink: 0; }
     .filter-chips { display: flex; gap: 6px; flex-wrap: nowrap; }
     .filter-chip {
         display: inline-flex; align-items: center; gap: 6px;
@@ -628,7 +455,6 @@
     }
     .filter-chip:hover { border-color: var(--primary-light); color: var(--primary); background: var(--primary-bg); }
     .filter-chip.active { background: var(--primary); color: #fff; border-color: var(--primary); box-shadow: 0 2px 8px rgba(79,70,229,0.2); }
-
     .search-box { position: relative; width: 220px; }
     .search-box i { position: absolute; left: 12px; top: 50%; transform: translateY(-50%); color: var(--gray-400); font-size: 0.85em; }
     .search-input {
@@ -638,7 +464,6 @@
         background: #fff; outline: none; transition: var(--transition);
     }
     .search-input:focus { border-color: var(--primary); box-shadow: 0 0 0 3px rgba(79,70,229,0.1); }
-
     .view-toggle { display: flex; border: 1px solid var(--gray-200); border-radius: var(--radius-sm); overflow: hidden; }
     .view-btn {
         width: 36px; height: 36px; border: none; background: #fff; color: var(--gray-400);
@@ -650,7 +475,7 @@
     .view-btn:hover:not(.active) { background: var(--gray-50); color: var(--gray-600); }
 
     /* ===== TASK GRID ===== */
-    .task-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(340px, 1fr)); gap: 20px; }
+    .task-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(370px, 1fr)); gap: 20px; }
     .task-grid.list-view { grid-template-columns: 1fr; }
 
     /* ===== TASK CARD ===== */
@@ -661,16 +486,13 @@
         display: flex; flex-direction: column; position: relative;
         animation: cardFadeIn 0.4s ease-out both;
     }
-    .task-card:nth-child(1) { animation-delay: 0s; }
-    .task-card:nth-child(2) { animation-delay: 0.05s; }
-    .task-card:nth-child(3) { animation-delay: 0.1s; }
     @keyframes cardFadeIn {
         from { opacity: 0; transform: translateY(12px); }
         to { opacity: 1; transform: translateY(0); }
     }
     .task-card:hover { box-shadow: var(--shadow-lg); transform: translateY(-3px); border-color: var(--gray-300); }
-    .task-card.is-inactive { opacity: 0.65; }
-    .task-card.is-inactive:hover { opacity: 0.85; }
+    .task-card-row.is-inactive { opacity: 0.65; }
+    .task-card-row.is-inactive:hover { opacity: 0.85; }
 
     .tc-image { position: relative; height: 180px; overflow: hidden; background: var(--gray-100); }
     .tc-image img { width: 100%; height: 100%; object-fit: cover; transition: transform 0.3s; }
@@ -688,18 +510,13 @@
     }
     .tc-status-badge.active { background: rgba(16,185,129,0.15); color: #059669; border: 1px solid rgba(16,185,129,0.2); }
     .tc-status-badge.paused { background: rgba(245,158,11,0.15); color: #d97706; border: 1px solid rgba(245,158,11,0.2); }
-    .tc-status-dot { width: 6px; height: 6px; border-radius: 50%;
-            }
+    .tc-status-dot { width: 6px; height: 6px; border-radius: 50%; }
     .tc-status-badge.active .tc-status-dot {
-        background: #10b981;
-        box-shadow: 0 0 6px rgba(16,185,129,0.5);
+        background: #10b981; box-shadow: 0 0 6px rgba(16,185,129,0.5);
         animation: pulse-green 2s infinite;
     }
     .tc-status-badge.paused .tc-status-dot { background: #f59e0b; }
-    @keyframes pulse-green {
-        0%, 100% { opacity: 1; }
-        50% { opacity: 0.5; }
-    }
+    @keyframes pulse-green { 0%, 100% { opacity: 1; } 50% { opacity: 0.5; } }
 
     .tc-body { padding: 18px 20px 14px; flex: 1; }
     .tc-header { display: flex; align-items: flex-start; justify-content: space-between; gap: 8px; margin-bottom: 10px; }
@@ -718,7 +535,6 @@
         color: #fff; display: flex; align-items: center; justify-content: center;
         font-size: 0.65em; font-weight: 700; flex-shrink: 0;
     }
-
     .tc-metrics { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 14px; }
     .tc-metric { background: var(--gray-50); border-radius: var(--radius-sm); padding: 10px 12px; }
     .tc-metric-label {
@@ -734,7 +550,6 @@
     .tc-price { font-size: 1.1em; font-weight: 700; color: var(--gray-800); }
     .tc-max-price { font-size: 0.75em; color: var(--gray-400); }
     .tc-no-data { font-size: 1.1em; color: var(--gray-300); }
-
     .tc-schedule { display: flex; align-items: center; gap: 8px; font-size: 0.78em; }
     .tc-schedule > i { color: var(--gray-400); font-size: 0.9em; }
     .tc-schedule-chips { display: flex; flex-wrap: wrap; gap: 4px; }
@@ -760,11 +575,11 @@
     .task-grid.list-view .tc-body { flex: 1; }
     .task-grid.list-view .tc-footer { border-top: none; border-left: 1px solid var(--gray-100); flex-direction: column; justify-content: center; padding: 12px; }
     .task-grid.list-view .tc-actions { flex-direction: column; }
-    .task-grid.list-view .tc-checkbox-wrap { top: 50%; right: auto; left: 12px; transform: translateY(-50%); }
+    .task-grid.list-view .task-card-row > .tc-checkbox-wrap { margin-top: 50px; }
 
     /* ===== RESPONSIVE ===== */
     @media (max-width: 1024px) {
-        .task-grid { grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); }
+        .task-grid { grid-template-columns: repeat(auto-fill, minmax(330px, 1fr)); }
         .bulk-bar-actions .bulk-btn span { display: none; }
         .bulk-bar-actions .bulk-btn { padding: 7px 10px; }
     }
@@ -777,9 +592,8 @@
         .task-grid.list-view .tc-image { width: 100%; min-width: unset; height: 160px; }
         .task-grid.list-view .tc-footer { border-left: none; border-top: 1px solid var(--gray-100); flex-direction: row; justify-content: flex-end; }
         .task-grid.list-view .tc-actions { flex-direction: row; }
-        .task-grid.list-view .tc-checkbox-wrap { top: 12px; left: auto; right: 12px; transform: none; }
         .tc-image { height: 150px; }
-        .tc-checkbox-wrap { opacity: 1 !important; }
+        .task-card-row > .tc-checkbox-wrap { opacity: 1 !important; }
         .bulk-bar { flex-wrap: wrap; }
         .bulk-bar-actions { flex-wrap: wrap; }
         .bulk-divider { display: none; }
@@ -796,9 +610,8 @@
 {% block extra_js %}
 <script>
 document.addEventListener('DOMContentLoaded', function() {
-    // ===== Elements =====
     var filterBar = document.getElementById('account-filters');
-    var cards = document.querySelectorAll('.task-card');
+    var rows = document.querySelectorAll('.task-card-row');
     var searchInput = document.getElementById('search-input');
     var grid = document.getElementById('task-grid');
     var noResults = document.getElementById('no-results');
@@ -810,17 +623,16 @@ document.addEventListener('DOMContentLoaded', function() {
     var currentFilter = 'all';
     var currentSearch = '';
 
-    // ===== Stats =====
     function updateStats() {
         var total = 0, active = 0, paused = 0, inTarget = 0;
-        cards.forEach(function(card) {
-            if (card.style.display === 'none') return;
+        rows.forEach(function(row) {
+            if (row.style.display === 'none') return;
             total++;
-            if (card.dataset.active === 'true') active++;
+            if (row.dataset.active === 'true') active++;
             else paused++;
-            var pos = parseInt(card.dataset.position);
-            var min = parseInt(card.dataset.targetMin);
-            var max = parseInt(card.dataset.targetMax);
+            var pos = parseInt(row.dataset.position);
+            var min = parseInt(row.dataset.targetMin);
+            var max = parseInt(row.dataset.targetMax);
             if (pos && pos >= min && pos <= max) inTarget++;
         });
         var el;
@@ -830,25 +642,24 @@ document.addEventListener('DOMContentLoaded', function() {
         el = document.getElementById('stat-target'); if (el) el.textContent = inTarget;
     }
 
-    // ===== Filter + Search =====
     function filterCards() {
         var visibleCount = 0;
-        cards.forEach(function(card) {
-            var matchFilter = (currentFilter === 'all' || card.dataset.accountId === currentFilter);
+        rows.forEach(function(row) {
+            var matchFilter = (currentFilter === 'all' || row.dataset.accountId === currentFilter);
             var matchSearch = true;
             if (currentSearch) {
-                var title = (card.dataset.title || '').toLowerCase();
-                var adId = (card.dataset.adId || '').toLowerCase();
+                var title = (row.dataset.title || '').toLowerCase();
+                var adId = (row.dataset.adId || '').toLowerCase();
                 matchSearch = title.indexOf(currentSearch) !== -1 || adId.indexOf(currentSearch) !== -1;
             }
             if (matchFilter && matchSearch) {
-                card.style.display = '';
+                row.style.display = '';
                 visibleCount++;
             } else {
-                card.style.display = 'none';
+                row.style.display = 'none';
             }
         });
-        if (noResults) noResults.style.display = (visibleCount === 0 && cards.length > 0) ? 'block' : 'none';
+        if (noResults) noResults.style.display = (visibleCount === 0 && rows.length > 0) ? 'block' : 'none';
         updateStats();
     }
 
@@ -874,7 +685,6 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     }
 
-    // ===== View Toggle =====
     viewButtons.forEach(function(btn) {
         btn.addEventListener('click', function() {
             viewButtons.forEach(function(b) { b.classList.remove('active'); });
@@ -891,7 +701,6 @@ document.addEventListener('DOMContentLoaded', function() {
         }
     } catch(e) {}
 
-    // ===== BULK SELECTION =====
     function getSelectedIds() {
         var ids = [];
         checkboxes.forEach(function(cb) {
@@ -903,8 +712,8 @@ document.addEventListener('DOMContentLoaded', function() {
     function getVisibleCheckboxes() {
         var visible = [];
         checkboxes.forEach(function(cb) {
-            var card = cb.closest('.task-card');
-            if (card && card.style.display !== 'none') visible.push(cb);
+            var row = cb.closest('.task-card-row');
+            if (row && row.style.display !== 'none') visible.push(cb);
         });
         return visible;
     }
@@ -913,48 +722,36 @@ document.addEventListener('DOMContentLoaded', function() {
         var selected = getSelectedIds();
         var count = selected.length;
         bulkCountNum.textContent = count;
+        if (count > 0) bulkBar.classList.add('visible');
+        else bulkBar.classList.remove('visible');
 
-        if (count > 0) {
-            bulkBar.classList.add('visible');
-        } else {
-            bulkBar.classList.remove('visible');
-        }
-
-        // Update card selected state
-        cards.forEach(function(card) {
-            var cb = card.querySelector('.task-checkbox');
-            if (cb && cb.checked) card.classList.add('selected');
-            else card.classList.remove('selected');
+        rows.forEach(function(row) {
+            var cb = row.querySelector('.task-checkbox');
+            if (cb && cb.checked) row.classList.add('selected');
+            else row.classList.remove('selected');
         });
 
-        // Update select-all state
         var visible = getVisibleCheckboxes();
         var allChecked = visible.length > 0 && visible.every(function(cb) { return cb.checked; });
         selectAllCheckbox.checked = allChecked;
     }
 
-    // Checkbox change
     checkboxes.forEach(function(cb) {
         cb.addEventListener('change', updateBulkBar);
     });
 
-    // Select all
     selectAllCheckbox.addEventListener('change', function() {
         var checked = this.checked;
-        getVisibleCheckboxes().forEach(function(cb) {
-            cb.checked = checked;
-        });
+        getVisibleCheckboxes().forEach(function(cb) { cb.checked = checked; });
         updateBulkBar();
     });
 
-    // Close bulk bar
     document.getElementById('bulk-close').addEventListener('click', function() {
         checkboxes.forEach(function(cb) { cb.checked = false; });
         selectAllCheckbox.checked = false;
         updateBulkBar();
     });
 
-    // ===== MODALS =====
     var modalOverlay = document.getElementById('modal-overlay');
     var modalTitle = document.getElementById('modal-title');
     var modalBody = document.getElementById('modal-body');
@@ -968,24 +765,10 @@ document.addEventListener('DOMContentLoaded', function() {
     var deleteConfirm = document.getElementById('delete-modal-confirm');
     var currentAction = null;
 
-    function openModal() {
-        modalOverlay.classList.add('visible');
-        document.body.style.overflow = 'hidden';
-    }
-    function closeModal() {
-        modalOverlay.classList.remove('visible');
-        document.body.style.overflow = '';
-        currentAction = null;
-    }
-    function openDeleteModal() {
-        deleteCount.textContent = getSelectedIds().length;
-        deleteOverlay.classList.add('visible');
-        document.body.style.overflow = 'hidden';
-    }
-    function closeDeleteModal() {
-        deleteOverlay.classList.remove('visible');
-        document.body.style.overflow = '';
-    }
+    function openModal() { modalOverlay.classList.add('visible'); document.body.style.overflow = 'hidden'; }
+    function closeModal() { modalOverlay.classList.remove('visible'); document.body.style.overflow = ''; currentAction = null; }
+    function openDeleteModal() { deleteCount.textContent = getSelectedIds().length; deleteOverlay.classList.add('visible'); document.body.style.overflow = 'hidden'; }
+    function closeDeleteModal() { deleteOverlay.classList.remove('visible'); document.body.style.overflow = ''; }
 
     modalClose.addEventListener('click', closeModal);
     modalCancel.addEventListener('click', closeModal);
@@ -993,12 +776,8 @@ document.addEventListener('DOMContentLoaded', function() {
     deleteClose.addEventListener('click', closeDeleteModal);
     deleteCancel.addEventListener('click', closeDeleteModal);
     deleteOverlay.addEventListener('click', function(e) { if (e.target === deleteOverlay) closeDeleteModal(); });
+    document.addEventListener('keydown', function(e) { if (e.key === 'Escape') { closeModal(); closeDeleteModal(); } });
 
-    document.addEventListener('keydown', function(e) {
-        if (e.key === 'Escape') { closeModal(); closeDeleteModal(); }
-    });
-
-    // ===== BULK ACTIONS =====
     function getCookie(name) {
         var val = null;
         document.cookie.split(';').forEach(function(c) {
@@ -1015,98 +794,47 @@ document.addEventListener('DOMContentLoaded', function() {
         xhr.setRequestHeader('X-CSRFToken', getCookie('csrftoken'));
         xhr.onload = function() {
             if (xhr.status === 200) {
-                try {
-                    var resp = JSON.parse(xhr.responseText);
-                    if (callback) callback(resp);
-                } catch(e) {
-                    location.reload();
-                }
-            } else {
-                alert('Ошибка: ' + xhr.status);
-            }
+                try { var resp = JSON.parse(xhr.responseText); if (callback) callback(resp); } catch(e) { location.reload(); }
+            } else { alert('Ошибка: ' + xhr.status); }
         };
         xhr.onerror = function() { alert('Ошибка сети'); };
         xhr.send(JSON.stringify(data));
     }
 
-    // Activate
     document.getElementById('bulk-activate').addEventListener('click', function() {
-        var ids = getSelectedIds();
-        if (!ids.length) return;
-        bulkRequest('/api/tasks/bulk-update/', { task_ids: ids, is_active: true }, function() {
-            location.reload();
-        });
+        var ids = getSelectedIds(); if (!ids.length) return;
+        bulkRequest('/api/tasks/bulk-update/', { task_ids: ids, is_active: true }, function() { location.reload(); });
     });
-
-    // Pause
     document.getElementById('bulk-pause').addEventListener('click', function() {
-        var ids = getSelectedIds();
-        if (!ids.length) return;
-        bulkRequest('/api/tasks/bulk-update/', { task_ids: ids, is_active: false }, function() {
-            location.reload();
-        });
+        var ids = getSelectedIds(); if (!ids.length) return;
+        bulkRequest('/api/tasks/bulk-update/', { task_ids: ids, is_active: false }, function() { location.reload(); });
     });
-
-    // Edit Position
     document.getElementById('bulk-edit-position').addEventListener('click', function() {
         currentAction = 'position';
         modalTitle.textContent = 'Изменить целевую позицию';
-        modalBody.innerHTML = '<div class="modal-field-row">' +
-            '<div class="modal-field">' +
-            '<label>Мин. позиция</label>' +
-            '<input type="number" class="modal-input" id="modal-pos-min" value="1" min="1" max="50">' +
-            '</div>' +
-            '<div class="modal-field">' +
-            '<label>Макс. позиция</label>' +
-            '<input type="number" class="modal-input" id="modal-pos-max" value="5" min="1" max="50">' +
-            '</div>' +
-            '</div>' +
-            '<div class="modal-hint">Будет применено к ' + getSelectedIds().length + ' задачам</div>';
+        modalBody.innerHTML = '<div class="modal-field-row"><div class="modal-field"><label>Мин. позиция</label><input type="number" class="modal-input" id="modal-pos-min" value="1" min="1" max="50"></div><div class="modal-field"><label>Макс. позиция</label><input type="number" class="modal-input" id="modal-pos-max" value="5" min="1" max="50"></div></div><div class="modal-hint">Будет применено к ' + getSelectedIds().length + ' задачам</div>';
         openModal();
     });
-
-    // Edit Price
     document.getElementById('bulk-edit-price').addEventListener('click', function() {
         currentAction = 'price';
         modalTitle.textContent = 'Изменить ставки';
-        modalBody.innerHTML = '<div class="modal-field-row">' +
-            '<div class="modal-field">' +
-            '<label>Мин. ставка (₽)</label>' +
-            '<input type="number" class="modal-input" id="modal-price-min" value="50" min="1">' +
-            '</div>' +
-            '<div class="modal-field">' +
-            '<label>Макс. ставка (₽)</label>' +
-            '<input type="number" class="modal-input" id="modal-price-max" value="200" min="1">' +
-            '</div>' +
-            '</div>' +
-            '<div class="modal-hint">Будет применено к ' + getSelectedIds().length + ' задачам</div>';
+        modalBody.innerHTML = '<div class="modal-field-row"><div class="modal-field"><label>Мин. ставка (₽)</label><input type="number" class="modal-input" id="modal-price-min" value="50" min="1"></div><div class="modal-field"><label>Макс. ставка (₽)</label><input type="number" class="modal-input" id="modal-price-max" value="200" min="1"></div></div><div class="modal-hint">Будет применено к ' + getSelectedIds().length + ' задачам</div>';
         openModal();
     });
-
-    // Edit Step
     document.getElementById('bulk-edit-step').addEventListener('click', function() {
         currentAction = 'step';
         modalTitle.textContent = 'Изменить шаг ставки';
-        modalBody.innerHTML = '<div class="modal-field">' +
-            '<label>Шаг ставки (₽)</label>' +
-            '<input type="number" class="modal-input" id="modal-step" value="10" min="1">' +
-            '</div>' +
-            '<div class="modal-hint">Будет применено к ' + getSelectedIds().length + ' задачам</div>';
+        modalBody.innerHTML = '<div class="modal-field"><label>Шаг ставки (₽)</label><input type="number" class="modal-input" id="modal-step" value="10" min="1"></div><div class="modal-hint">Будет применено к ' + getSelectedIds().length + ' задачам</div>';
         openModal();
     });
-
-    // Delete
     document.getElementById('bulk-delete').addEventListener('click', function() {
         if (!getSelectedIds().length) return;
         openDeleteModal();
     });
 
-    // Apply modal
     modalApply.addEventListener('click', function() {
-        var ids = getSelectedIds();
-        if (!ids.length) return;
+        var ids = getSelectedIds(); if (!ids.length) return;
         var data = { task_ids: ids };
-
         if (currentAction === 'position') {
             data.target_position_min = parseInt(document.getElementById('modal-pos-min').value) || 1;
             data.target_position_max = parseInt(document.getElementById('modal-pos-max').value) || 5;
@@ -1116,36 +844,17 @@ document.addEventListener('DOMContentLoaded', function() {
         } else if (currentAction === 'step') {
             data.bid_step = parseInt(document.getElementById('modal-step').value) || 10;
         }
-
-        bulkRequest('/api/tasks/bulk-update/', data, function() {
-            closeModal();
-            location.reload();
-        });
+        bulkRequest('/api/tasks/bulk-update/', data, function() { closeModal(); location.reload(); });
     });
 
-    // Confirm delete
     deleteConfirm.addEventListener('click', function() {
-        var ids = getSelectedIds();
-        if (!ids.length) return;
-        bulkRequest('/api/tasks/bulk-delete/', { task_ids: ids }, function() {
-            closeDeleteModal();
-            location.reload();
-        });
+        var ids = getSelectedIds(); if (!ids.length) return;
+        bulkRequest('/api/tasks/bulk-delete/', { task_ids: ids }, function() { closeDeleteModal(); location.reload(); });
     });
 
-    // ===== Keyboard shortcuts =====
     document.addEventListener('keydown', function(e) {
-        if ((e.ctrlKey || e.metaKey) && e.key === 'k') {
-            e.preventDefault();
-            if (searchInput) searchInput.focus();
-        }
-        if (e.key === 'Escape' && document.activeElement === searchInput) {
-            searchInput.value = '';
-            currentSearch = '';
-            filterCards();
-            searchInput.blur();
-        }
-        // Ctrl+A to select all visible
+        if ((e.ctrlKey || e.metaKey) && e.key === 'k') { e.preventDefault(); if (searchInput) searchInput.focus(); }
+        if (e.key === 'Escape' && document.activeElement === searchInput) { searchInput.value = ''; currentSearch = ''; filterCards(); searchInput.blur(); }
         if ((e.ctrlKey || e.metaKey) && e.key === 'a' && document.activeElement.tagName !== 'INPUT') {
             e.preventDefault();
             var visible = getVisibleCheckboxes();
@@ -1156,7 +865,6 @@ document.addEventListener('DOMContentLoaded', function() {
         }
     });
 
-    // ===== Init =====
     updateStats();
 });
 </script>
