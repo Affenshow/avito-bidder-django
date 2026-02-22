@@ -10,7 +10,7 @@ logger = logging.getLogger(__name__)
 
 
 # =============================================================
-# ПРОКСИ-ПУЛ
+# ПРОКСИ-ПУЛ (мобильные)
 # =============================================================
 
 PROXY_POOL = [
@@ -30,10 +30,16 @@ PROXY_POOL = [
     },
 ]
 
+# Время последней ротации для каждого прокси
+_last_rotation = {}
 
-def get_random_proxy() -> tuple:
-    """Возвращает (proxies_dict, proxy_info)"""
-    proxy = random.choice(PROXY_POOL)
+
+def get_random_proxy(exclude_port=None) -> tuple:
+    """Возвращает (proxies_dict, proxy_info). Можно исключить порт."""
+    available = [p for p in PROXY_POOL if p['port'] != exclude_port]
+    if not available:
+        available = PROXY_POOL
+    proxy = random.choice(available)
     return {
         'http': f'http://{proxy["user"]}:{proxy["pass"]}@{proxy["host"]}:{proxy["port"]}',
         'https': f'http://{proxy["user"]}:{proxy["pass"]}@{proxy["host"]}:{proxy["port"]}',
@@ -41,19 +47,39 @@ def get_random_proxy() -> tuple:
 
 
 def rotate_proxy_ip(proxy: Dict):
-    """Смена IP для конкретного прокси"""
+    """Смена IP — не чаще 1 раза в 60 сек."""
+    port = proxy['port']
+    now = time.time()
+    last = _last_rotation.get(port, 0)
+
+    if now - last < 60:
+        logger.info(f"[PROXY] Порт {port} — ротация была {int(now - last)} сек назад, пропуск")
+        return
+
     try:
-        logger.info(f"[PROXY] Смена IP для порта {proxy['port']}...")
-        response = requests.get(proxy['change_ip_url'], timeout=10)
-        response.raise_for_status()
-        logger.info(f"[PROXY] IP сменён для порта {proxy['port']}. Ответ: {response.text}")
-        time.sleep(5)
+        url = proxy['change_ip_url']
+        if '&format=json' not in url:
+            url += '&format=json'
+
+        logger.info(f"[PROXY] Смена IP для порта {port}...")
+        response = requests.get(url, timeout=10)
+        _last_rotation[port] = now
+
+        try:
+            data = response.json()
+            new_ip = data.get('new_ip', data.get('ip', '?'))
+            logger.info(f"[PROXY] ✅ Новый IP: {new_ip}")
+        except:
+            logger.info(f"[PROXY] Ответ: {response.text[:100]}")
+
+        # Пауза 8 сек — прокси нужно время на переключение
+        time.sleep(8)
     except Exception as e:
-        logger.error(f"[PROXY] Ошибка смены IP для порта {proxy['port']}: {e}")
+        logger.error(f"[PROXY] Ошибка смены IP: {e}")
 
 
 # =============================================================
-# ЭНДПОИНТЫ AVITO
+# ЭНДПОИНТЫ
 # =============================================================
 
 TOKEN_URL = 'https://api.avito.ru/token/'
@@ -70,7 +96,6 @@ ITEM_INFO_URL_TPL = 'https://api.avito.ru/core/v1/accounts/{user_id}/items/{item
 # =============================================================
 
 def get_avito_access_token(client_id: str, client_secret: str) -> Union[str, None]:
-    """Обмен client_id и client_secret на access_token."""
     headers = {
         'Content-Type': 'application/x-www-form-urlencoded',
         'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
@@ -87,14 +112,12 @@ def get_avito_access_token(client_id: str, client_secret: str) -> Union[str, Non
         token_data = response.json()
         access_token = token_data.get('access_token')
         if access_token:
-            logger.info("[TOKEN] Успех: токен получен")
+            logger.info("[TOKEN] Успех")
             return access_token
         logger.error(f"[TOKEN] access_token не найден: {token_data}")
         return None
     except requests.exceptions.RequestException as e:
         logger.error(f"[TOKEN] Ошибка: {e}")
-        if hasattr(e, 'response') and e.response is not None:
-            logger.error(f"[TOKEN] Ответ: {e.response.text}")
         return None
 
 
@@ -103,16 +126,14 @@ def get_avito_access_token(client_id: str, client_secret: str) -> Union[str, Non
 # =============================================================
 
 def get_avito_user_id(access_token: str) -> Union[int, None]:
-    """Получает ID текущего пользователя Avito."""
     headers = {'Authorization': f'Bearer {access_token}'}
     try:
         response = requests.get(USER_INFO_URL, headers=headers, timeout=10)
         response.raise_for_status()
         user_id = response.json().get('id')
         if user_id:
-            logger.info(f"[USER] ID пользователя: {user_id}")
+            logger.info(f"[USER] ID: {user_id}")
             return user_id
-        logger.error("[USER] ID не найден в ответе")
         return None
     except Exception as e:
         logger.error(f"[USER] Ошибка: {e}")
@@ -124,7 +145,6 @@ def get_avito_user_id(access_token: str) -> Union[int, None]:
 # =============================================================
 
 def get_balances(access_token: str, user_id: int) -> Dict:
-    """Получает баланс кошелька и аванс (CPA)."""
     result = {'real': None, 'bonus': None}
     headers = {'Authorization': f'Bearer {access_token}'}
 
@@ -142,132 +162,67 @@ def get_balances(access_token: str, user_id: int) -> Dict:
         resp.raise_for_status()
         result['bonus'] = resp.json().get('balance', 0) / 100
     except Exception as e:
-        logger.warning(f"[BALANCE] Ошибка CPA-аванса: {e}")
+        logger.warning(f"[BALANCE] Ошибка CPA: {e}")
 
     return result
 
 
 # =============================================================
-# ИНФОРМАЦИЯ ОБ ОБЪЯВЛЕНИИ (НОВОЕ! — заменяет парсинг)
+# ИНФОРМАЦИЯ ОБ ОБЪЯВЛЕНИИ (ЧЕРЕЗ API — БЕЗ ПАРСИНГА!)
 # =============================================================
 
 def get_item_info(access_token: str, item_id: int) -> Union[Dict, None]:
     """
-    Получает title и image через парсинг страницы объявления.
-    Попытка 1: через прокси. Попытка 2: без прокси.
+    Получает title и image ТОЛЬКО через Avito API.
+    НЕ парсит HTML — не нужны прокси, не бывает 429.
     """
-    import re
-    from bs4 import BeautifulSoup
-
-    ad_url = None
-    ad_status = ""
-
-    # --- URL через API ---
     try:
         user_id = get_avito_user_id(access_token)
-        if user_id:
-            api_url = ITEM_INFO_URL_TPL.format(user_id=user_id, item_id=item_id)
-            headers_api = {'Authorization': f'Bearer {access_token}'}
-            resp_api = requests.get(api_url, headers=headers_api, timeout=15)
-            if resp_api.status_code == 200:
-                api_data = resp_api.json()
-                ad_url = api_data.get("url")
-                ad_status = api_data.get("status", "")
-    except Exception as e:
-        logger.warning(f"[ITEM_INFO] API не отдал URL: {e}")
+        if not user_id:
+            return None
 
-    if not ad_url:
-        ad_url = f"https://www.avito.ru/{item_id}"
+        api_url = ITEM_INFO_URL_TPL.format(user_id=user_id, item_id=item_id)
+        headers = {'Authorization': f'Bearer {access_token}'}
+        resp = requests.get(api_url, headers=headers, timeout=15)
 
-    # --- Парсим страницу ---
-    headers_browser = {
-        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/121.0.0.0 Safari/537.36',
-        'Accept-Language': 'ru-RU,ru;q=0.9',
-    }
+        if resp.status_code == 200:
+            data = resp.json()
+            title = data.get('title', '')
+            status = data.get('status', 'unknown')
+            ad_url = data.get('url', '')
 
-    # Попытка 1: с прокси, Попытка 2: без прокси
-    attempts = []
-    proxies, proxy_used = get_random_proxy()
-    if proxies:
-        attempts.append(("proxy", proxies, proxy_used))
-    attempts.append(("direct", None, None))
-
-    for attempt_name, attempt_proxies, attempt_proxy_used in attempts:
-        try:
-            logger.info(f"[ITEM_INFO] Парсинг {ad_url} ({attempt_name})...")
-            resp_page = requests.get(
-                ad_url,
-                headers=headers_browser,
-                proxies=attempt_proxies,
-                timeout=20,
-                allow_redirects=True
-            )
-
-            if resp_page.status_code != 200:
-                logger.warning(f"[ITEM_INFO] {attempt_name}: статус {resp_page.status_code}")
-                continue
-
-            soup = BeautifulSoup(resp_page.text, 'html.parser')
-
-            # --- Title ---
-            title = ""
-            h1 = soup.find('h1')
-            if h1:
-                title = h1.text.strip()
-            else:
-                og_title = soup.find('meta', property='og:title')
-                if og_title:
-                    raw = og_title.get('content', '')
-                    title = raw.split(' в ')[0] if ' в ' in raw else raw.split(' | ')[0]
-
-            # --- Image ---
+            # Картинка из API
             image_url = None
+            images = data.get('images', [])
+            if images:
+                if isinstance(images[0], str):
+                    image_url = images[0]
+                elif isinstance(images[0], dict):
+                    image_url = images[0].get('640x480') or images[0].get('default')
 
-            hd_images = re.findall(
-                r'https://\d+\.img\.avito\.st/image/\d+/[^"\'>\s]+',
-                resp_page.text
-            )
-            if hd_images:
-                image_url = hd_images[0]
-
-            if not image_url:
-                og_image = soup.find('meta', property='og:image')
-                if og_image:
-                    image_url = og_image.get('content')
-
-            if not title and not image_url:
-                logger.warning(f"[ITEM_INFO] {attempt_name}: пустой результат, пробуем дальше")
-                continue
-
-            result = {
+            logger.info(f"[ITEM_INFO] ✅ {item_id}: «{title}» (API)")
+            return {
                 "title": title,
                 "image_url": image_url,
-                "status": ad_status or "unknown",
-                "url": resp_page.url,
+                "status": status,
+                "url": ad_url,
             }
+        else:
+            logger.warning(f"[ITEM_INFO] API статус {resp.status_code} для {item_id}")
+            return None
 
-            logger.info(f"[ITEM_INFO] ✅ {item_id}: «{title}» ({attempt_name})")
-            return result
-
-        except requests.exceptions.RequestException as e:
-            logger.warning(f"[ITEM_INFO] {attempt_name} ошибка: {e}")
-            if attempt_proxy_used:
-                rotate_proxy_ip(attempt_proxy_used)
-            continue
-
-    logger.error(f"[ITEM_INFO] ❌ {item_id}: все попытки провалились")
-    return None
+    except Exception as e:
+        logger.error(f"[ITEM_INFO] Ошибка: {e}")
+        return None
 
 
 # =============================================================
-# СПИСОК ОБЪЯВЛЕНИЙ ПОЛЬЗОВАТЕЛЯ
+# СПИСОК ОБЪЯВЛЕНИЙ
 # =============================================================
 
 def get_user_ads(access_token: str) -> Union[List[Dict], None]:
-    """Получает список активных объявлений пользователя."""
     user_id = get_avito_user_id(access_token)
     if not user_id:
-        logger.error("[ADS] Не удалось получить user_id")
         return None
 
     url = f"https://api.avito.ru/core/v1/accounts/{user_id}/ads/"
@@ -276,11 +231,9 @@ def get_user_ads(access_token: str) -> Union[List[Dict], None]:
         'Content-Type': 'application/json',
     }
 
-    proxies, proxy_used = get_random_proxy()
-
     try:
-        logger.info(f"[ADS] Запрос объявлений пользователя {user_id}...")
-        response = requests.get(url, headers=headers, proxies=proxies, timeout=20)
+        logger.info(f"[ADS] Запрос объявлений {user_id}...")
+        response = requests.get(url, headers=headers, timeout=20)
         response.raise_for_status()
         data = response.json()
         ads = data.get('resources', [])
@@ -293,12 +246,11 @@ def get_user_ads(access_token: str) -> Union[List[Dict], None]:
                     'title': ad.get('title', 'Без названия'),
                 })
 
-        logger.info(f"[ADS] Найдено {len(formatted)} активных объявлений")
+        logger.info(f"[ADS] {len(formatted)} активных")
         return formatted
 
     except requests.exceptions.RequestException as e:
         logger.error(f"[ADS] Ошибка: {e}")
-        rotate_proxy_ip(proxy_used)
         return None
 
 
@@ -307,53 +259,43 @@ def get_user_ads(access_token: str) -> Union[List[Dict], None]:
 # =============================================================
 
 def get_current_ad_price(ad_id: int, access_token: str) -> Union[float, None]:
-    """Получает текущую ставку объявления."""
     if not access_token:
         return None
 
     headers = {'Authorization': f'Bearer {access_token}'}
     url = GET_BIDS_URL_TPL.format(item_id=ad_id)
 
-    max_retries = 3
-    proxy_used = None
-
-    for attempt in range(max_retries):
-        proxies, proxy_used = get_random_proxy()
+    for attempt in range(2):
         try:
-            logger.info(f"[STAVKA] Попытка {attempt+1}/{max_retries} через прокси {proxy_used['port']}")
-            response = requests.get(url, headers=headers, proxies=proxies, timeout=15)
+            logger.info(f"[STAVKA] Попытка {attempt+1}/2")
+            response = requests.get(url, headers=headers, timeout=15)
             response.raise_for_status()
             data = response.json()
 
-            bid_in_kopecks = data.get('manual', {}).get('bidPenny')
-            if bid_in_kopecks is not None:
-                price = float(bid_in_kopecks) / 100
-                logger.info(f"[STAVKA] Текущая цена: {price} ₽")
+            bid = data.get('manual', {}).get('bidPenny')
+            if bid is not None:
+                price = float(bid) / 100
+                logger.info(f"[STAVKA] Цена: {price} ₽")
                 return price
 
-            logger.warning("[STAVKA] Поле manual.bidPenny не найдено")
+            logger.warning("[STAVKA] bidPenny не найден")
             return None
 
         except requests.exceptions.RequestException as e:
-            logger.error(f"[STAVKA] Ошибка попытки {attempt+1}: {e}")
-            if proxy_used is not None:
-                rotate_proxy_ip(proxy_used)
-            time.sleep(5)
+            logger.error(f"[STAVKA] Ошибка: {e}")
+            time.sleep(3)
 
-    logger.error("[STAVKA] Все попытки провалились")
     return None
 
 
-def set_ad_price(ad_id: int, new_price: float, access_token: str, daily_limit_rub: float = None) -> bool:
-    """Устанавливает ставку и (опционально) дневной лимит."""
+def set_ad_price(ad_id: int, new_price: float, access_token: str,
+                 daily_limit_rub: float = None) -> bool:
     if not access_token:
-        logger.error("[SET] Нет access_token")
         return False
 
     headers = {
         'Authorization': f'Bearer {access_token}',
         'Content-Type': 'application/json',
-        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
     }
 
     body = {
@@ -362,28 +304,21 @@ def set_ad_price(ad_id: int, new_price: float, access_token: str, daily_limit_ru
         "bidPenny": int(new_price * 100),
     }
 
-    log_message = f"Установка ставки {new_price} ₽"
+    log_msg = f"Ставка {new_price} ₽"
 
-    if daily_limit_rub is not None and daily_limit_rub > 0:
+    if daily_limit_rub and daily_limit_rub > 0:
         body["dailyBudgetPenny"] = int(daily_limit_rub * 100)
-        log_message += f" + лимит {daily_limit_rub} ₽"
-
-    proxies, proxy_used = get_random_proxy()
+        log_msg += f" + лимит {daily_limit_rub} ₽"
 
     try:
-        logger.info(f"[SET] {log_message} через прокси {proxy_used['port']}")
+        logger.info(f"[SET] {log_msg}")
         response = requests.post(
-            SET_MANUAL_BID_URL, headers=headers,
-            json=body, proxies=proxies, timeout=15
+            SET_MANUAL_BID_URL, headers=headers, json=body, timeout=15
         )
         response.raise_for_status()
-        logger.info(f"[SET] ✅ Успех! Ответ: {response.text or 'пусто'}")
+        logger.info(f"[SET] ✅ Успех")
         return True
 
     except requests.exceptions.RequestException as e:
         logger.error(f"[SET] Ошибка: {e}")
-        if hasattr(e, 'response') and e.response is not None:
-            status = e.response.status_code
-            logger.error(f"[SET] Статус: {status}, Ответ: {e.response.text or 'пусто'}")
-        rotate_proxy_ip(proxy_used)
         return False
