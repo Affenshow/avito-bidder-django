@@ -120,7 +120,8 @@ def get_ad_position(search_url: str, ad_id: int) -> Union[Dict, None]:
                     return {"position": position}
 
             logger.warning(f"[PARSER] {ad_id} не в {len(all_ads)} объявлениях")
-            return None
+            continue
+            # return None
 
         except requests.exceptions.RequestException as e:
             logger.error(f"[PARSER] Ошибка попытки {attempt+1}: {e}")
