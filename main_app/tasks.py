@@ -75,7 +75,7 @@ def get_ad_position(search_url: str, ad_id: int) -> Union[Dict, None]:
         },
     ]
 
-    max_retries = 3
+    max_retries = 5
     last_port = None
 
     for attempt in range(max_retries):
