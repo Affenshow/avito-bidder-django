@@ -5,8 +5,12 @@ import logging
 import random
 import time
 from typing import Union, Dict, List
+import redis
 
 logger = logging.getLogger(__name__)
+
+# Redis для синхронизации между воркерами
+_redis = redis.Redis(host='localhost', port=6379, db=1)
 
 
 # =============================================================
@@ -47,13 +51,15 @@ def get_random_proxy(exclude_port=None) -> tuple:
 
 
 def rotate_proxy_ip(proxy: Dict):
-    """Смена IP — не чаще 1 раза в 60 сек."""
+    """Смена IP — не чаще 1 раза в 60 сек. Синхронизация через Redis."""
     port = proxy['port']
+    redis_key = f'proxy_rotation:{port}'
     now = time.time()
-    last = _last_rotation.get(port, 0)
 
-    if now - last < 60:
-        logger.info(f"[PROXY] Порт {port} — ротация была {int(now - last)} сек назад, пропуск")
+    # Проверяем в Redis — общем для всех воркеров
+    last = _redis.get(redis_key)
+    if last and now - float(last) < 60:
+        logger.info(f"[PROXY] Порт {port} — ротация была {int(now - float(last))} сек назад, пропуск")
         return
 
     try:
@@ -63,7 +69,9 @@ def rotate_proxy_ip(proxy: Dict):
 
         logger.info(f"[PROXY] Смена IP для порта {port}...")
         response = requests.get(url, timeout=10)
-        _last_rotation[port] = now
+        
+        # Сохраняем время в Redis
+        _redis.set(redis_key, now, ex=300)
 
         try:
             data = response.json()
@@ -72,7 +80,6 @@ def rotate_proxy_ip(proxy: Dict):
         except:
             logger.info(f"[PROXY] Ответ: {response.text[:100]}")
 
-        # Пауза 8 сек — прокси нужно время на переключение
         time.sleep(8)
     except Exception as e:
         logger.error(f"[PROXY] Ошибка смены IP: {e}")
