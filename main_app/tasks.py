@@ -46,6 +46,10 @@ def maybe_rotate_ip():
 # =============================================================
 
 def get_ad_position(search_url: str, ad_id: int) -> Union[Dict, None]:
+    """
+    Парсит позицию с умными повторами.
+    При 429 — ждёт всё дольше между попытками (не долбит подряд).
+    """
     headers_list = [
         {
             'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/121.0.0.0 Safari/537.36',
@@ -54,6 +58,7 @@ def get_ad_position(search_url: str, ad_id: int) -> Union[Dict, None]:
             'Accept-Encoding': 'gzip, deflate, br',
             'DNT': '1',
             'Connection': 'keep-alive',
+            'Upgrade-Insecure-Requests': '1',
         },
         {
             'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36',
@@ -61,6 +66,7 @@ def get_ad_position(search_url: str, ad_id: int) -> Union[Dict, None]:
             'Accept-Language': 'ru-RU,ru;q=0.9,en;q=0.5',
             'Accept-Encoding': 'gzip, deflate, br',
             'Connection': 'keep-alive',
+            'Upgrade-Insecure-Requests': '1',
         },
         {
             'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:122.0) Gecko/20100101 Firefox/122.0',
@@ -72,38 +78,53 @@ def get_ad_position(search_url: str, ad_id: int) -> Union[Dict, None]:
         },
     ]
 
-    max_retries = 3          # Было 5 — снижаем до 3
-    backoff_delays = [10, 20, 30]   # Было [30,60,120,240] — теперь максимум 30 сек
+    max_retries = 5
+    last_port = None
+
+    # Паузы после 429: 30, 60, 120, 240 сек — каждый раз в 2 раза больше
+    backoff_delays = [30, 60, 120, 240]
 
     for attempt in range(max_retries):
-        proxies, proxy_used = get_random_proxy()
+        proxies, proxy_used = get_random_proxy(exclude_port=last_port)
+        last_port = proxy_used['port']
         headers = headers_list[attempt % len(headers_list)]
 
         try:
-            pause = random.uniform(2, 4)   # Было 3-7, снижаем
+            # Обычная пауза между запросами
+            pause = random.uniform(3, 7)
             logger.info(f"[PARSER] Попытка {attempt+1}/{max_retries} порт {proxy_used['port']} (пауза {pause:.1f}с)")
             time.sleep(pause)
 
             response = requests.get(
-                search_url, headers=headers, proxies=proxies, timeout=15  # Было 30
+                search_url, headers=headers, proxies=proxies, timeout=30
             )
 
             if response.status_code in (429, 403):
+                # Меняем IP
                 rotate_proxy_ip(proxy_used)
+                
+                # Ждём по нарастающей
                 wait = backoff_delays[min(attempt, len(backoff_delays) - 1)]
-                logger.warning(f"[PARSER] {response.status_code} — ждём {wait} сек")
+                wait += random.randint(-5, 5)  # небольшой джиттер
+                logger.warning(
+                    f"[PARSER] {response.status_code} порт {proxy_used['port']} "
+                    f"— смена IP, ждём {wait} сек перед следующей попыткой"
+                )
                 time.sleep(wait)
                 continue
 
             response.raise_for_status()
             soup = BeautifulSoup(response.text, 'html.parser')
+
             all_ads = soup.find_all('div', {'data-marker': 'item'})
             logger.info(f"[PARSER] Найдено {len(all_ads)} объявлений")
 
             if not all_ads:
                 logger.warning("[PARSER] 0 объявлений — блок или пустая выдача")
-                # НЕ ждём долго — просто выходим
-                return None
+                rotate_proxy_ip(proxy_used)
+                wait = backoff_delays[min(attempt, len(backoff_delays) - 1)]
+                time.sleep(wait)
+                continue
 
             for index, ad_element in enumerate(all_ads):
                 if ad_element.get('data-item-id') == str(ad_id):
@@ -111,12 +132,14 @@ def get_ad_position(search_url: str, ad_id: int) -> Union[Dict, None]:
                     logger.info(f"[PARSER] ✅ {ad_id} на позиции {position}")
                     return {"position": position}
 
-            logger.warning(f"[PARSER] {ad_id} не найден в {len(all_ads)} объявлениях")
-            return None  # Не найден = не в топе, выходим сразу
+            # Страница загрузилась нормально, но объявления нет
+            logger.warning(f"[PARSER] {ad_id} не найден в {len(all_ads)} объявлениях — реально не в топ-50")
+            return None
 
         except requests.exceptions.RequestException as e:
             logger.error(f"[PARSER] Ошибка попытки {attempt+1}: {e}")
-            time.sleep(5)   # Было 15
+            rotate_proxy_ip(proxy_used)
+            time.sleep(15)
 
     logger.error(f"[PARSER] Все {max_retries} попытки провалились")
     return None
