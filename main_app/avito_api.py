@@ -4,7 +4,7 @@ import requests
 import logging
 import random
 import time
-from typing import Union, Dict, List, Optional
+from typing import Union, Dict, List
 import redis
 
 logger = logging.getLogger(__name__)
@@ -14,7 +14,7 @@ _redis = redis.Redis(host='localhost', port=6379, db=1)
 
 
 # =============================================================
-# ПРОКСИ-ПУЛ (мобильные) — не изменилось
+# ПРОКСИ-ПУЛ (мобильные)
 # =============================================================
 
 PROXY_POOL = [
@@ -34,6 +34,7 @@ PROXY_POOL = [
     },
 ]
 
+# Время последней ротации для каждого прокси
 _last_rotation = {}
 
 
@@ -55,6 +56,7 @@ def rotate_proxy_ip(proxy: Dict):
     redis_key = f'proxy_rotation:{port}'
     now = time.time()
 
+    # Проверяем в Redis — общем для всех воркеров
     last = _redis.get(redis_key)
     if last and now - float(last) < 60:
         logger.info(f"[PROXY] Порт {port} — ротация была {int(now - float(last))} сек назад, пропуск")
@@ -67,13 +69,15 @@ def rotate_proxy_ip(proxy: Dict):
 
         logger.info(f"[PROXY] Смена IP для порта {port}...")
         response = requests.get(url, timeout=10)
+        
+        # Сохраняем время в Redis
         _redis.set(redis_key, now, ex=300)
 
         try:
             data = response.json()
             new_ip = data.get('new_ip', data.get('ip', '?'))
             logger.info(f"[PROXY] ✅ Новый IP: {new_ip}")
-        except Exception:
+        except:
             logger.info(f"[PROXY] Ответ: {response.text[:100]}")
 
         time.sleep(8)
@@ -82,7 +86,7 @@ def rotate_proxy_ip(proxy: Dict):
 
 
 # =============================================================
-# ЭНДПОИНТЫ — не изменилось
+# ЭНДПОИНТЫ
 # =============================================================
 
 TOKEN_URL = 'https://api.avito.ru/token/'
@@ -95,7 +99,7 @@ ITEM_INFO_URL_TPL = 'https://api.avito.ru/core/v1/accounts/{user_id}/items/{item
 
 
 # =============================================================
-# ТОКЕН — не изменилось
+# ТОКЕН
 # =============================================================
 
 def get_avito_access_token(client_id: str, client_secret: str) -> Union[str, None]:
@@ -125,7 +129,7 @@ def get_avito_access_token(client_id: str, client_secret: str) -> Union[str, Non
 
 
 # =============================================================
-# USER ID — не изменилось
+# USER ID
 # =============================================================
 
 def get_avito_user_id(access_token: str) -> Union[int, None]:
@@ -144,7 +148,7 @@ def get_avito_user_id(access_token: str) -> Union[int, None]:
 
 
 # =============================================================
-# БАЛАНС — не изменилось
+# БАЛАНС
 # =============================================================
 
 def get_balances(access_token: str, user_id: int) -> Dict:
@@ -171,10 +175,14 @@ def get_balances(access_token: str, user_id: int) -> Dict:
 
 
 # =============================================================
-# ИНФОРМАЦИЯ ОБ ОБЪЯВЛЕНИИ — не изменилось
+# ИНФОРМАЦИЯ ОБ ОБЪЯВЛЕНИИ (ЧЕРЕЗ API — БЕЗ ПАРСИНГА!)
 # =============================================================
 
 def get_item_info(access_token: str, item_id: int) -> Union[Dict, None]:
+    """
+    Получает title и image ТОЛЬКО через Avito API.
+    НЕ парсит HTML — не нужны прокси, не бывает 429.
+    """
     try:
         user_id = get_avito_user_id(access_token)
         if not user_id:
@@ -190,6 +198,7 @@ def get_item_info(access_token: str, item_id: int) -> Union[Dict, None]:
             status = data.get('status', 'unknown')
             ad_url = data.get('url', '')
 
+            # Картинка из API
             image_url = None
             images = data.get('images', [])
             if images:
@@ -215,7 +224,7 @@ def get_item_info(access_token: str, item_id: int) -> Union[Dict, None]:
 
 
 # =============================================================
-# СПИСОК ОБЪЯВЛЕНИЙ — не изменилось
+# СПИСОК ОБЪЯВЛЕНИЙ
 # =============================================================
 
 def get_user_ads(access_token: str) -> Union[List[Dict], None]:
@@ -253,12 +262,10 @@ def get_user_ads(access_token: str) -> Union[List[Dict], None]:
 
 
 # =============================================================
-# СТАВКИ — get_current_ad_price оставляем (используется в views)
-# + НОВАЯ get_bids_table для tasks.py
+# СТАВКИ
 # =============================================================
 
 def get_current_ad_price(ad_id: int, access_token: str) -> Union[float, None]:
-    """Быстро получает только текущую ставку. Используется в views."""
     if not access_token:
         return None
 
@@ -288,77 +295,8 @@ def get_current_ad_price(ad_id: int, access_token: str) -> Union[float, None]:
     return None
 
 
-def get_bids_table(ad_id: int, access_token: str) -> Optional[Dict]:
-    """
-    НОВАЯ ФУНКЦИЯ — для гибридного биддера.
-    Получает из API:
-      - current_bid: текущая ставка
-      - rec_bid:     рекомендация Avito (сколько нужно для хорошей позиции)
-      - bids:        таблица ставок (список строк price/compare)
-
-    Используется в tasks.py вместо get_current_ad_price —
-    даёт больше данных за один запрос.
-    """
-    if not access_token:
-        return None
-
-    headers = {'Authorization': f'Bearer {access_token}'}
-    url = GET_BIDS_URL_TPL.format(item_id=ad_id)
-
-    try:
-        response = requests.get(url, headers=headers, timeout=15)
-
-        if response.status_code == 429:
-            logger.warning(f"[BIDS] 429 для {ad_id} — rate limit")
-            return None
-
-        response.raise_for_status()
-        data = response.json()
-
-        # Текущая ставка
-        current_bid = None
-        manual = data.get('manual', {})
-        if manual.get('bidPenny') is not None:
-            current_bid = float(manual['bidPenny']) / 100
-
-        # Рекомендация Avito
-        rec_bid = None
-        recommended = data.get('recommended', {})
-        if recommended.get('bidPenny') is not None:
-            rec_bid = float(recommended['bidPenny']) / 100
-
-        # Таблица ставок (для информации/логов)
-        bids = []
-        for row in data.get('bids', []):
-            price_penny = row.get('bidPenny')
-            compare = row.get('compare')
-            if price_penny is not None:
-                bids.append({
-                    'price': float(price_penny) / 100,
-                    'compare': compare,
-                })
-
-        logger.info(
-            f"[BIDS] {ad_id}: "
-            f"текущая={current_bid}₽, "
-            f"рек={rec_bid}₽, "
-            f"строк в таблице={len(bids)}"
-        )
-
-        return {
-            'current_bid': current_bid,
-            'rec_bid': rec_bid,
-            'bids': bids,
-        }
-
-    except requests.exceptions.RequestException as e:
-        logger.error(f"[BIDS] Ошибка для {ad_id}: {e}")
-        return None
-
-
 def set_ad_price(ad_id: int, new_price: float, access_token: str,
                  daily_limit_rub: float = None) -> bool:
-    """Установка ставки — не изменилось."""
     if not access_token:
         return False
 
@@ -373,11 +311,11 @@ def set_ad_price(ad_id: int, new_price: float, access_token: str,
         "bidPenny": int(new_price * 100),
     }
 
-    log_msg = f"Ставка {new_price}₽ для {ad_id}"
+    log_msg = f"Ставка {new_price} ₽"
 
     if daily_limit_rub and daily_limit_rub > 0:
         body["dailyBudgetPenny"] = int(daily_limit_rub * 100)
-        log_msg += f" + лимит {daily_limit_rub}₽"
+        log_msg += f" + лимит {daily_limit_rub} ₽"
 
     try:
         logger.info(f"[SET] {log_msg}")
@@ -385,7 +323,7 @@ def set_ad_price(ad_id: int, new_price: float, access_token: str,
             SET_MANUAL_BID_URL, headers=headers, json=body, timeout=15
         )
         response.raise_for_status()
-        logger.info("[SET] ✅ Успех")
+        logger.info(f"[SET] ✅ Успех")
         return True
 
     except requests.exceptions.RequestException as e:
