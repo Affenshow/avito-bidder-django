@@ -233,17 +233,16 @@ def set_ad_price(ad_id: int, new_price: float, access_token: str,
         "bidPenny": int(new_price * 100),
     }
 
-    log_msg = f"Ставка {new_price} ₽"
-
     if daily_limit_rub and daily_limit_rub > 0:
         body["dailyBudgetPenny"] = int(daily_limit_rub * 100)
-        log_msg += f" + лимит {daily_limit_rub} ₽"
 
     try:
-        logger.info(f"[SET] {log_msg}")
+        logger.info(f"[SET] Ставка {new_price} ₽ | тело: {body}")
         response = requests.post(
             SET_MANUAL_BID_URL, headers=headers, json=body, timeout=15
         )
+        # ДОБАВИЛИ — показываем что вернул Avito
+        logger.info(f"[SET] Ответ Avito: {response.status_code} | {response.text[:300]}")
         response.raise_for_status()
         logger.info(f"[SET] ✅ Успех")
         return True
