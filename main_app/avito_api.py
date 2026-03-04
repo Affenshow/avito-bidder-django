@@ -12,9 +12,11 @@ logger = logging.getLogger(__name__)
 # ROTATING ПРОКСИ — один на всё, IP меняется автоматически
 # =============================================================
 
+# avito_api.py — меняем только эту строку
+
 ROTATING_PROXY = {
-    'http':  'http://u3822a4cd582005d0-zone-cis-region-ru:u3822a4cd582005d0@eu.proxy.rucaptcha.com:2334',
-    'https': 'http://u3822a4cd582005d0-zone-cis-region-ru:u3822a4cd582005d0@eu.proxy.rucaptcha.com:2334',
+    'http':  'socks5h://u3822a4cd582005d0-zone-cis-region-ru:u3822a4cd582005d0@eu.proxy.rucaptcha.com:2333',
+    'https': 'socks5h://u3822a4cd582005d0-zone-cis-region-ru:u3822a4cd582005d0@eu.proxy.rucaptcha.com:2333',
 }
 
 # =============================================================
