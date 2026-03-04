@@ -5,85 +5,17 @@ import logging
 import random
 import time
 from typing import Union, Dict, List
-import redis
 
 logger = logging.getLogger(__name__)
 
-# Redis для синхронизации между воркерами
-_redis = redis.Redis(host='localhost', port=6379, db=1)
-
-
 # =============================================================
-# ПРОКСИ-ПУЛ (мобильные)
+# ROTATING ПРОКСИ — один на всё, IP меняется автоматически
 # =============================================================
 
-PROXY_POOL = [
-    {
-        'user': 'uKuNaf',
-        'pass': 'FAjEC5HeK7yt',
-        'host': 'mproxy.site',
-        'port': 17563,
-        'change_ip_url': 'https://changeip.mobileproxy.space/?proxy_key=65a15a75eb565bba6e220d15559005e3'
-    },
-    {
-        'user': 'vuU1DY',
-        'pass': 'apsYVEZRaY7c',
-        'host': 'mproxy.site',
-        'port': 11289,
-        'change_ip_url': 'https://changeip.mobileproxy.space/?proxy_key=7db42d70377c063ba427f4487f63aa6f'
-    },
-]
-
-# Время последней ротации для каждого прокси
-_last_rotation = {}
-
-
-def get_random_proxy(exclude_port=None) -> tuple:
-    """Возвращает (proxies_dict, proxy_info). Можно исключить порт."""
-    available = [p for p in PROXY_POOL if p['port'] != exclude_port]
-    if not available:
-        available = PROXY_POOL
-    proxy = random.choice(available)
-    return {
-        'http': f'http://{proxy["user"]}:{proxy["pass"]}@{proxy["host"]}:{proxy["port"]}',
-        'https': f'http://{proxy["user"]}:{proxy["pass"]}@{proxy["host"]}:{proxy["port"]}',
-    }, proxy
-
-
-def rotate_proxy_ip(proxy: Dict):
-    """Смена IP — не чаще 1 раза в 60 сек. Синхронизация через Redis."""
-    port = proxy['port']
-    redis_key = f'proxy_rotation:{port}'
-    now = time.time()
-
-    # Проверяем в Redis — общем для всех воркеров
-    last = _redis.get(redis_key)
-    if last and now - float(last) < 60:
-        logger.info(f"[PROXY] Порт {port} — ротация была {int(now - float(last))} сек назад, пропуск")
-        return
-
-    try:
-        url = proxy['change_ip_url']
-        if '&format=json' not in url:
-            url += '&format=json'
-
-        logger.info(f"[PROXY] Смена IP для порта {port}...")
-        response = requests.get(url, timeout=10)
-        
-        # Сохраняем время в Redis
-        _redis.set(redis_key, now, ex=300)
-
-        try:
-            data = response.json()
-            new_ip = data.get('new_ip', data.get('ip', '?'))
-            logger.info(f"[PROXY] ✅ Новый IP: {new_ip}")
-        except:
-            logger.info(f"[PROXY] Ответ: {response.text[:100]}")
-
-        time.sleep(8)
-    except Exception as e:
-        logger.error(f"[PROXY] Ошибка смены IP: {e}")
-
+ROTATING_PROXY = {
+    'http':  'http://u3822a4cd582005d0-zone-cis-region-ru:u3822a4cd582005d0@eu.proxy.rucaptcha.com:2334',
+    'https': 'http://u3822a4cd582005d0-zone-cis-region-ru:u3822a4cd582005d0@eu.proxy.rucaptcha.com:2334',
+}
 
 # =============================================================
 # ЭНДПОИНТЫ
@@ -96,7 +28,6 @@ CPA_BALANCE_URL = 'https://api.avito.ru/cpa/v3/balanceInfo'
 GET_BIDS_URL_TPL = 'https://api.avito.ru/cpxpromo/1/getBids/{item_id}'
 SET_MANUAL_BID_URL = 'https://api.avito.ru/cpxpromo/1/setManual'
 ITEM_INFO_URL_TPL = 'https://api.avito.ru/core/v1/accounts/{user_id}/items/{item_id}/'
-
 
 # =============================================================
 # ТОКЕН
@@ -127,7 +58,6 @@ def get_avito_access_token(client_id: str, client_secret: str) -> Union[str, Non
         logger.error(f"[TOKEN] Ошибка: {e}")
         return None
 
-
 # =============================================================
 # USER ID
 # =============================================================
@@ -145,7 +75,6 @@ def get_avito_user_id(access_token: str) -> Union[int, None]:
     except Exception as e:
         logger.error(f"[USER] Ошибка: {e}")
         return None
-
 
 # =============================================================
 # БАЛАНС
@@ -173,16 +102,11 @@ def get_balances(access_token: str, user_id: int) -> Dict:
 
     return result
 
-
 # =============================================================
-# ИНФОРМАЦИЯ ОБ ОБЪЯВЛЕНИИ (ЧЕРЕЗ API — БЕЗ ПАРСИНГА!)
+# ИНФОРМАЦИЯ ОБ ОБЪЯВЛЕНИИ
 # =============================================================
 
 def get_item_info(access_token: str, item_id: int) -> Union[Dict, None]:
-    """
-    Получает title и image ТОЛЬКО через Avito API.
-    НЕ парсит HTML — не нужны прокси, не бывает 429.
-    """
     try:
         user_id = get_avito_user_id(access_token)
         if not user_id:
@@ -198,7 +122,6 @@ def get_item_info(access_token: str, item_id: int) -> Union[Dict, None]:
             status = data.get('status', 'unknown')
             ad_url = data.get('url', '')
 
-            # Картинка из API
             image_url = None
             images = data.get('images', [])
             if images:
@@ -207,7 +130,7 @@ def get_item_info(access_token: str, item_id: int) -> Union[Dict, None]:
                 elif isinstance(images[0], dict):
                     image_url = images[0].get('640x480') or images[0].get('default')
 
-            logger.info(f"[ITEM_INFO] ✅ {item_id}: «{title}» (API)")
+            logger.info(f"[ITEM_INFO] ✅ {item_id}: «{title}»")
             return {
                 "title": title,
                 "image_url": image_url,
@@ -221,7 +144,6 @@ def get_item_info(access_token: str, item_id: int) -> Union[Dict, None]:
     except Exception as e:
         logger.error(f"[ITEM_INFO] Ошибка: {e}")
         return None
-
 
 # =============================================================
 # СПИСОК ОБЪЯВЛЕНИЙ
@@ -260,7 +182,6 @@ def get_user_ads(access_token: str) -> Union[List[Dict], None]:
         logger.error(f"[ADS] Ошибка: {e}")
         return None
 
-
 # =============================================================
 # СТАВКИ
 # =============================================================
@@ -274,7 +195,6 @@ def get_current_ad_price(ad_id: int, access_token: str) -> Union[float, None]:
 
     for attempt in range(2):
         try:
-            logger.info(f"[STAVKA] Попытка {attempt+1}/2")
             response = requests.get(url, headers=headers, timeout=15)
             response.raise_for_status()
             data = response.json()

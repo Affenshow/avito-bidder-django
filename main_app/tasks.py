@@ -12,43 +12,25 @@ from datetime import datetime
 from celery import shared_task
 
 from .avito_api import (
-    PROXY_POOL,
+    ROTATING_PROXY,
     get_avito_access_token,
     get_current_ad_price,
     set_ad_price,
-    rotate_proxy_ip,
-    get_random_proxy,
     get_item_info,
 )
 from .models import BiddingTask, TaskLog
 
 logger = logging.getLogger(__name__)
 
-# Счётчик запросов — меняем IP каждые 20 запросов, а не каждый раз
-_request_counter = 0
-_ROTATE_EVERY = 20
-
-
-def maybe_rotate_ip():
-    """Меняет IP только каждые N запросов — экономит время."""
-    global _request_counter
-    _request_counter += 1
-    if _request_counter >= _ROTATE_EVERY:
-        _request_counter = 0
-        proxy = random.choice(PROXY_POOL)
-        rotate_proxy_ip(proxy)
-        time.sleep(3)  # Короткая пауза после смены
-        logger.info("[ROTATE] IP сменён (плановая ротация)")
-
 
 # =============================================================
-# ПАРСИНГ ПОЗИЦИИ — ОПТИМИЗИРОВАННЫЙ
+# ПАРСИНГ ПОЗИЦИИ — ROTATING PROXY
 # =============================================================
 
 def get_ad_position(search_url: str, ad_id: int) -> Union[Dict, None]:
     """
-    Парсит позицию с умными повторами.
-    При 429 — ждёт всё дольше между попытками (не долбит подряд).
+    Rotating прокси — каждый запрос автоматически с нового IP.
+    Никакой ручной ротации, никаких конфликтов воркеров.
     """
     headers_list = [
         {
@@ -78,52 +60,40 @@ def get_ad_position(search_url: str, ad_id: int) -> Union[Dict, None]:
         },
     ]
 
-    max_retries = 5
-    last_port = None
-
-    # Паузы после 429: 30, 60, 120, 240 сек — каждый раз в 2 раза больше
-    backoff_delays = [30, 60, 120, 240]
-
-    for attempt in range(max_retries):
-        proxies, proxy_used = get_random_proxy(exclude_port=last_port)
-        last_port = proxy_used['port']
-        headers = headers_list[attempt % len(headers_list)]
-
+    for attempt in range(3):
         try:
-            # Обычная пауза между запросами
-            pause = random.uniform(3, 7)
-            logger.info(f"[PARSER] Попытка {attempt+1}/{max_retries} порт {proxy_used['port']} (пауза {pause:.1f}с)")
+            pause = random.uniform(2, 5)
+            logger.info(f"[PARSER] Попытка {attempt+1}/3 (пауза {pause:.1f}с)")
             time.sleep(pause)
 
             response = requests.get(
-                search_url, headers=headers, proxies=proxies, timeout=30
+                search_url,
+                headers=random.choice(headers_list),
+                proxies=ROTATING_PROXY,
+                timeout=20
             )
 
-            if response.status_code in (429, 403):
-                # Меняем IP
-                rotate_proxy_ip(proxy_used)
-                
-                # Ждём по нарастающей
-                wait = backoff_delays[min(attempt, len(backoff_delays) - 1)]
-                wait += random.randint(-5, 5)  # небольшой джиттер
-                logger.warning(
-                    f"[PARSER] {response.status_code} порт {proxy_used['port']} "
-                    f"— смена IP, ждём {wait} сек перед следующей попыткой"
-                )
+            if response.status_code == 429:
+                # Rotating сам даст новый IP при следующем запросе
+                wait = 10 + random.randint(0, 10)
+                logger.warning(f"[PARSER] 429 — ждём {wait}с, следующий запрос с новым IP")
+                time.sleep(wait)
+                continue
+
+            if response.status_code == 403:
+                wait = 15 + random.randint(0, 10)
+                logger.warning(f"[PARSER] 403 — ждём {wait}с")
                 time.sleep(wait)
                 continue
 
             response.raise_for_status()
             soup = BeautifulSoup(response.text, 'html.parser')
-
             all_ads = soup.find_all('div', {'data-marker': 'item'})
             logger.info(f"[PARSER] Найдено {len(all_ads)} объявлений")
 
             if not all_ads:
-                logger.warning("[PARSER] 0 объявлений — блок или пустая выдача")
-                rotate_proxy_ip(proxy_used)
-                wait = backoff_delays[min(attempt, len(backoff_delays) - 1)]
-                time.sleep(wait)
+                logger.warning("[PARSER] 0 объявлений — возможно блок")
+                time.sleep(15)
                 continue
 
             for index, ad_element in enumerate(all_ads):
@@ -132,17 +102,24 @@ def get_ad_position(search_url: str, ad_id: int) -> Union[Dict, None]:
                     logger.info(f"[PARSER] ✅ {ad_id} на позиции {position}")
                     return {"position": position}
 
-            # Страница загрузилась нормально, но объявления нет
-            logger.warning(f"[PARSER] {ad_id} не найден в {len(all_ads)} объявлениях — реально не в топ-50")
+            logger.warning(f"[PARSER] {ad_id} не найден среди {len(all_ads)} — не в топе")
             return None
 
-        except requests.exceptions.RequestException as e:
-            logger.error(f"[PARSER] Ошибка попытки {attempt+1}: {e}")
-            rotate_proxy_ip(proxy_used)
-            time.sleep(15)
+        except requests.exceptions.ProxyError as e:
+            logger.error(f"[PARSER] Ошибка прокси попытка {attempt+1}: {e}")
+            time.sleep(10)
 
-    logger.error(f"[PARSER] Все {max_retries} попытки провалились")
+        except requests.exceptions.Timeout:
+            logger.error(f"[PARSER] Таймаут попытка {attempt+1}")
+            time.sleep(10)
+
+        except Exception as e:
+            logger.error(f"[PARSER] Ошибка попытки {attempt+1}: {e}")
+            time.sleep(10)
+
+    logger.error("[PARSER] Все 3 попытки провалились")
     return None
+
 
 # =============================================================
 # ПРОВЕРКА РАСПИСАНИЯ
@@ -193,7 +170,7 @@ def is_time_in_schedule(schedule_data) -> bool:
 
 
 # =============================================================
-# ОСНОВНОЙ БИДДЕР — ОПТИМИЗИРОВАННЫЙ
+# ОСНОВНОЙ БИДДЕР
 # =============================================================
 
 @shared_task(bind=True, max_retries=5, default_retry_delay=300)
@@ -204,7 +181,7 @@ def run_bidding_for_task(self, task_id: int):
         logger.info(f"Задача {task_id} удалена или отключена.")
         return
 
-    # --- Защита от частых запусков (снижено до 120 сек) ---
+    # --- Защита от частых запусков ---
     last_log = TaskLog.objects.filter(task=task).order_by('-timestamp').first()
     if last_log and (timezone.now() - last_log.timestamp).total_seconds() < 120:
         logger.info(f"Задача {task_id} слишком частая — пропуск")
@@ -265,19 +242,17 @@ def run_bidding_for_task(self, task_id: int):
         return
 
     # --- 3. Основная логика ---
+    logger.info(f"[TASK {task_id}] ▶ Биддер для объявления {task.ad_id}")
     TaskLog.objects.create(task=task, message=f"▶ Биддер для {task.ad_id}")
 
-    # Плановая ротация IP (не каждый раз!)
-    #maybe_rotate_ip()
-
-    # Парсим позицию
+    # Парсим позицию через rotating прокси
     ad_data = get_ad_position(task.search_url, task.ad_id)
 
     # --- Не найдено ---
     if ad_data is None:
         TaskLog.objects.create(
             task=task,
-            message="Объявление не найдено в топ-50.",
+            message="⚠️ Позиция не определена (не в топе или блок).",
             level='ERROR'
         )
         task.current_position = None
@@ -295,7 +270,7 @@ def run_bidding_for_task(self, task_id: int):
                 log_msg = f"↑ Первый запуск: {new_price} ₽"
             else:
                 new_price = float(current_price_from_db) + float(task.bid_step)
-                log_msg = f"↑ Повышена вслепую до {new_price} ₽"
+                log_msg = f"↑ Не в топе → {current_price_from_db} ₽ → {new_price} ₽"
 
             if new_price <= float(task.max_price):
                 if set_ad_price(task.ad_id, new_price, access_token,
@@ -319,7 +294,7 @@ def run_bidding_for_task(self, task_id: int):
 
         task.save(update_fields=['current_position', 'current_price'])
 
-        # --- Найдено ---
+    # --- Найдено ---
     else:
         position = ad_data["position"]
         current_price = get_current_ad_price(task.ad_id, access_token)
@@ -341,7 +316,6 @@ def run_bidding_for_task(self, task_id: int):
                 task=task, message="Не удалось получить цену.", level='ERROR'
             )
         elif position > task.target_position_max:
-            # Вышел из цели — ПОВЫШАЕМ
             new_price = float(current_price) + float(task.bid_step)
             if new_price <= float(task.max_price):
                 if set_ad_price(task.ad_id, new_price, access_token,
@@ -363,7 +337,6 @@ def run_bidding_for_task(self, task_id: int):
                     level='WARNING'
                 )
         else:
-            # В цели или выше — ПОНИЖАЕМ (экономия)
             new_price = float(current_price) - float(task.bid_step)
             if new_price >= float(task.min_price):
                 if set_ad_price(task.ad_id, new_price, access_token,
@@ -389,7 +362,7 @@ def run_bidding_for_task(self, task_id: int):
     TaskLog.objects.create(task=task, message="Цикл завершён ✔")
     if task.is_active:
         delay = 290 + random.randint(-60, 60)
-        logger.info(f"Задача {task_id} → через {delay} сек")
+        logger.info(f"Задача {task_id} → следующий запуск через {delay} сек")
         run_bidding_for_task.apply_async(args=[task_id], countdown=delay)
 
 
@@ -431,8 +404,6 @@ def update_task_details(task_id: int):
 
         if updated_fields:
             task.save(update_fields=updated_fields)
-            logger.info(
-                f"[update_task_details] ✅ {task_id}: «{task.title}»"
-            )
+            logger.info(f"[update_task_details] ✅ {task_id}: «{task.title}»")
     else:
         logger.warning(f"[update_task_details] ❌ Нет данных для {task.ad_id}")
