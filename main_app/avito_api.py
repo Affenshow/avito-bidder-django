@@ -15,8 +15,8 @@ logger = logging.getLogger(__name__)
 # avito_api.py — меняем только эту строку
 
 ROTATING_PROXY = {
-    'http':  'socks5h://u3822a4cd582005d0-zone-cis-region-ru:u3822a4cd582005d0@eu.proxy.rucaptcha.com:2333',
-    'https': 'socks5h://u3822a4cd582005d0-zone-cis-region-ru:u3822a4cd582005d0@eu.proxy.rucaptcha.com:2333',
+    'http':  'http://eu.proxy.rucaptcha.com:2334:u3822a4cd582005d0-zone-cis-region-ru:u3822a4cd582005d0',
+    'https': 'https://eu.proxy.rucaptcha.com:2334:u3822a4cd582005d0-zone-cis-region-ru:u3822a4cd582005d0',
 }
 
 # =============================================================
