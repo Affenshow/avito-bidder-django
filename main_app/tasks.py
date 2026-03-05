@@ -10,6 +10,7 @@ from bs4 import BeautifulSoup
 from typing import Union, Dict
 from datetime import datetime
 from celery import shared_task
+from .captcha_solver import get_avito_session
 
 from .avito_api import (
     ROTATING_PROXY,
@@ -28,55 +29,27 @@ logger = logging.getLogger(__name__)
 # =============================================================
 
 def get_ad_position(search_url: str, ad_id: int) -> Union[Dict, None]:
-    """
-    Rotating прокси — каждый запрос автоматически с нового IP.
-    Никакой ручной ротации, никаких конфликтов воркеров.
-    """
-    headers_list = [
-        {
-            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/121.0.0.0 Safari/537.36',
-            'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
-            'Accept-Language': 'ru-RU,ru;q=0.9',
-            'Accept-Encoding': 'gzip, deflate, br',
-            'DNT': '1',
-            'Connection': 'keep-alive',
-            'Upgrade-Insecure-Requests': '1',
-        },
-        {
-            'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36',
-            'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
-            'Accept-Language': 'ru-RU,ru;q=0.9,en;q=0.5',
-            'Accept-Encoding': 'gzip, deflate, br',
-            'Connection': 'keep-alive',
-            'Upgrade-Insecure-Requests': '1',
-        },
-        {
-            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:122.0) Gecko/20100101 Firefox/122.0',
-            'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
-            'Accept-Language': 'ru-RU,ru;q=0.8,en-US;q=0.5',
-            'Accept-Encoding': 'gzip, deflate, br',
-            'DNT': '1',
-            'Connection': 'keep-alive',
-        },
-    ]
-
     for attempt in range(3):
         try:
             pause = random.uniform(2, 5)
             logger.info(f"[PARSER] Попытка {attempt+1}/3 (пауза {pause:.1f}с)")
             time.sleep(pause)
 
-            response = requests.get(
-                search_url,
-                headers=random.choice(headers_list),
-                proxies=ROTATING_PROXY,
-                timeout=20
-            )
+            # Получаем сессию с обходом капчи
+            session = get_avito_session()
+            if not session:
+                logger.error("[PARSER] Не удалось получить сессию (капча не решена)")
+                time.sleep(15)
+                continue
+
+            # Добавляем прокси к сессии
+            session.proxies.update(ROTATING_PROXY)
+
+            response = session.get(search_url, timeout=20)
 
             if response.status_code == 429:
-                # Rotating сам даст новый IP при следующем запросе
                 wait = 10 + random.randint(0, 10)
-                logger.warning(f"[PARSER] 429 — ждём {wait}с, следующий запрос с новым IP")
+                logger.warning(f"[PARSER] 429 — ждём {wait}с")
                 time.sleep(wait)
                 continue
 
@@ -84,6 +57,12 @@ def get_ad_position(search_url: str, ad_id: int) -> Union[Dict, None]:
                 wait = 15 + random.randint(0, 10)
                 logger.warning(f"[PARSER] 403 — ждём {wait}с")
                 time.sleep(wait)
+                continue
+
+            # Если всё ещё капча после сессии
+            if 'Доступ ограничен' in response.text or 'firewallCaptcha' in response.text:
+                logger.warning("[PARSER] Всё ещё капча после решения — повтор")
+                time.sleep(15)
                 continue
 
             response.raise_for_status()
@@ -102,7 +81,7 @@ def get_ad_position(search_url: str, ad_id: int) -> Union[Dict, None]:
                     logger.info(f"[PARSER] ✅ {ad_id} на позиции {position}")
                     return {"position": position}
 
-            logger.warning(f"[PARSER] {ad_id} не найден среди {len(all_ads)} — не в топе")
+            logger.warning(f"[PARSER] {ad_id} не найден среди {len(all_ads)}")
             return None
 
         except requests.exceptions.ProxyError as e:
