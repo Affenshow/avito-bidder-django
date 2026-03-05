@@ -109,11 +109,9 @@ def get_balances(access_token: str, user_id: int) -> Dict:
 # =============================================================
 
 def get_item_info(access_token: str, item_id: int) -> Union[Dict, None]:
-    """Получает информацию об объявлении через /items эндпоинт"""
+    """Получает информацию об объявлении"""
     try:
         headers = {'Authorization': f'Bearer {access_token}'}
-        
-        # Используем тот же эндпоинт что и при добавлении задач
         resp = requests.get(
             "https://api.avito.ru/core/v1/items",
             headers=headers,
@@ -125,28 +123,31 @@ def get_item_info(access_token: str, item_id: int) -> Union[Dict, None]:
             logger.warning(f"[ITEM_INFO] API статус {resp.status_code} для {item_id}")
             return None
 
-        data = resp.json()
-        resources = data.get('resources', [])
-        
+        resources = resp.json().get('resources', [])
         if not resources:
-            logger.warning(f"[ITEM_INFO] Объявление {item_id} не найдено")
             return None
-        
+
         item = resources[0]
-        
         title = item.get('title', '')
         status = item.get('status', 'unknown')
         ad_url = item.get('url', '')
-        
-        # Получаем картинку
+
+        # Парсим фото через og:image
         image_url = None
-        images = item.get('images', [])
-        if images:
-            if isinstance(images[0], str):
-                image_url = images[0]
-            elif isinstance(images[0], dict):
-                image_url = images[0].get('640x480') or images[0].get('url')
-        
+        if ad_url:
+            try:
+                import re
+                page_resp = requests.get(ad_url, headers={
+                    'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/120.0.0.0 Safari/537.36',
+                }, timeout=15)
+                if page_resp.status_code == 200:
+                    match = re.search(r'<meta property="og:image" content="([^"]+)"', page_resp.text)
+                    if match:
+                        image_url = match.group(1)
+                        logger.info(f"[ITEM_INFO] Фото найдено для {item_id}")
+            except Exception as e:
+                logger.warning(f"[ITEM_INFO] Не удалось получить фото: {e}")
+
         logger.info(f"[ITEM_INFO] ✅ {item_id}: «{title}»")
         return {
             "title": title,
