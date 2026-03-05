@@ -109,39 +109,51 @@ def get_balances(access_token: str, user_id: int) -> Dict:
 # =============================================================
 
 def get_item_info(access_token: str, item_id: int) -> Union[Dict, None]:
+    """Получает информацию об объявлении через /items эндпоинт"""
     try:
-        user_id = get_avito_user_id(access_token)
-        if not user_id:
-            return None
-
-        api_url = ITEM_INFO_URL_TPL.format(user_id=user_id, item_id=item_id)
         headers = {'Authorization': f'Bearer {access_token}'}
-        resp = requests.get(api_url, headers=headers, timeout=15)
+        
+        # Используем тот же эндпоинт что и при добавлении задач
+        resp = requests.get(
+            "https://api.avito.ru/core/v1/items",
+            headers=headers,
+            params={"ids": str(item_id)},
+            timeout=15
+        )
 
-        if resp.status_code == 200:
-            data = resp.json()
-            title = data.get('title', '')
-            status = data.get('status', 'unknown')
-            ad_url = data.get('url', '')
-
-            image_url = None
-            images = data.get('images', [])
-            if images:
-                if isinstance(images[0], str):
-                    image_url = images[0]
-                elif isinstance(images[0], dict):
-                    image_url = images[0].get('640x480') or images[0].get('default')
-
-            logger.info(f"[ITEM_INFO] ✅ {item_id}: «{title}»")
-            return {
-                "title": title,
-                "image_url": image_url,
-                "status": status,
-                "url": ad_url,
-            }
-        else:
+        if resp.status_code != 200:
             logger.warning(f"[ITEM_INFO] API статус {resp.status_code} для {item_id}")
             return None
+
+        data = resp.json()
+        resources = data.get('resources', [])
+        
+        if not resources:
+            logger.warning(f"[ITEM_INFO] Объявление {item_id} не найдено")
+            return None
+        
+        item = resources[0]
+        
+        title = item.get('title', '')
+        status = item.get('status', 'unknown')
+        ad_url = item.get('url', '')
+        
+        # Получаем картинку
+        image_url = None
+        images = item.get('images', [])
+        if images:
+            if isinstance(images[0], str):
+                image_url = images[0]
+            elif isinstance(images[0], dict):
+                image_url = images[0].get('640x480') or images[0].get('url')
+        
+        logger.info(f"[ITEM_INFO] ✅ {item_id}: «{title}»")
+        return {
+            "title": title,
+            "image_url": image_url,
+            "status": status,
+            "url": ad_url,
+        }
 
     except Exception as e:
         logger.error(f"[ITEM_INFO] Ошибка: {e}")
