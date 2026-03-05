@@ -178,7 +178,7 @@ def get_item_info(access_token: str, item_id: int) -> Union[Dict, None]:
             # --- Image ---
             image_url = None
             hd_images = re.findall(
-                r'https://\d+\.img\.avito\.st/image/\d+/[^"\'>\s]+',
+                r'https://\d+\.img\.avito\.st/image/\d+/[^"\'>\s\\]+',
                 resp_page.text
             )
             if hd_images:
