@@ -72,13 +72,16 @@ def _solve_image(image_base64):
     return result['solution']['text'] if result else None
 
 
-def get_avito_session():
+def get_avito_session(proxies=None):
     """
     Возвращает requests.Session() с обходом капчи.
-    Если капчи нет — возвращает сессию сразу.
     """
     session = requests.Session()
     session.headers.update(HEADERS)
+    
+    # Добавляем прокси сразу если переданы
+    if proxies:
+        session.proxies.update(proxies)
 
     # Шаг 1 — первый запрос
     r1 = session.get('https://www.avito.ru/moskva', timeout=15)

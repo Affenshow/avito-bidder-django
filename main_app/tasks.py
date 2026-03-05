@@ -36,14 +36,12 @@ def get_ad_position(search_url: str, ad_id: int) -> Union[Dict, None]:
             time.sleep(pause)
 
             # Получаем сессию с обходом капчи
-            session = get_avito_session()
+            session = get_avito_session(proxies=ROTATING_PROXY)
             if not session:
                 logger.error("[PARSER] Не удалось получить сессию (капча не решена)")
                 time.sleep(15)
                 continue
 
-            # Добавляем прокси к сессии
-            session.proxies.update(ROTATING_PROXY)
 
             response = session.get(search_url, timeout=20)
 
