@@ -349,6 +349,7 @@ def run_bidding_for_task(self, task_id: int):
 
 @shared_task
 def update_task_details(task_id: int):
+    logger.info(f"[update_task_details] ▶ Начало для задачи {task_id}")
     try:
         task = BiddingTask.objects.select_related('avito_account').get(pk=task_id)
     except BiddingTask.DoesNotExist:
@@ -360,15 +361,18 @@ def update_task_details(task_id: int):
         logger.error(f"[update_task_details] У задачи {task_id} нет аккаунта")
         return
 
+    logger.info(f"[update_task_details] Получение токена для {account.avito_client_id[:10]}...")
     token = get_avito_access_token(
         account.avito_client_id,
         account.avito_client_secret
     )
     if not token:
-        logger.error(f"[update_task_details] Нет токена")
+        logger.error(f"[update_task_details] Нет токена для задачи {task_id}")
         return
 
+    logger.info(f"[update_task_details] Запрос данных для ad_id={task.ad_id}")
     info = get_item_info(token, task.ad_id)
+    logger.info(f"[update_task_details] Ответ get_item_info: {info}")
 
     if info:
         updated_fields = []
@@ -382,5 +386,7 @@ def update_task_details(task_id: int):
         if updated_fields:
             task.save(update_fields=updated_fields)
             logger.info(f"[update_task_details] ✅ {task_id}: «{task.title}»")
+        else:
+            logger.warning(f"[update_task_details] ⚠️ Данные пришли но нечего обновлять: {info}")
     else:
-        logger.warning(f"[update_task_details] ❌ Нет данных для {task.ad_id}")
+        logger.warning(f"[update_task_details] ❌ Нет данных для ad_id={task.ad_id}")
