@@ -1,6 +1,7 @@
 # main_app/tasks.py
 
 import logging
+import main_app.captcha_solver as cs
 import time
 import random
 import json
@@ -31,70 +32,87 @@ logger = logging.getLogger(__name__)
 def get_ad_position(search_url: str, ad_id: int) -> Union[Dict, None]:
     for attempt in range(3):
         try:
-            pause = random.uniform(2, 5)
+            pause = random.uniform(2, 4)
             logger.info(f"[PARSER] Попытка {attempt+1}/3 (пауза {pause:.1f}с)")
             time.sleep(pause)
 
-            # Получаем сессию с обходом капчи
             session = get_avito_session(proxies=ROTATING_PROXY)
             if not session:
-                logger.error("[PARSER] Не удалось получить сессию (капча не решена)")
+                logger.error("[PARSER] Не удалось получить сессию")
                 time.sleep(15)
                 continue
 
+            # Только текст — без картинок, css, js
+            session.headers.update({
+                'Accept': 'text/html',
+                'Accept-Encoding': 'gzip, deflate',  # сжатие — меньше трафика
+            })
 
-            response = session.get(search_url, timeout=20)
+            # Добавляем только нужную страницу и минимум параметров
+            # Убираем лишние параметры из URL если есть
+            clean_url = search_url.split('?')[0]  # без параметров если не нужны
+            # Если параметры нужны — оставляем search_url как есть
+
+            response = session.get(
+                search_url,
+                timeout=20,
+                stream=False,  # не стримить
+            )
 
             if response.status_code == 429:
-                wait = 10 + random.randint(0, 10)
+                wait = 30 + random.randint(0, 15)
                 logger.warning(f"[PARSER] 429 — ждём {wait}с")
                 time.sleep(wait)
                 continue
 
             if response.status_code == 403:
-                wait = 15 + random.randint(0, 10)
+                wait = 30 + random.randint(0, 15)
                 logger.warning(f"[PARSER] 403 — ждём {wait}с")
                 time.sleep(wait)
                 continue
 
-            # Если всё ещё капча после сессии
             if 'Доступ ограничен' in response.text or 'firewallCaptcha' in response.text:
-                logger.warning("[PARSER] Всё ещё капча после решения — повтор")
-                time.sleep(15)
-                continue
+               logger.warning("[PARSER] Капча — сбрасываем кеш сессии")
+               # Сбрасываем кеш чтобы пересоздать сессию
+               cs._cached_session = None
+               cs._session_created_at = 0
+               time.sleep(15)
+               continue
 
             response.raise_for_status()
-            soup = BeautifulSoup(response.text, 'html.parser')
-            all_ads = soup.find_all('div', {'data-marker': 'item'})
-            logger.info(f"[PARSER] Найдено {len(all_ads)} объявлений")
 
-            if not all_ads:
+            # Ищем только data-item-id в тексте — без полного парсинга BeautifulSoup
+            import re
+            item_ids = re.findall(r'data-item-id=["\'](\d+)["\']', response.text)
+            logger.info(f"[PARSER] Найдено {len(item_ids)} объявлений")
+
+            if not item_ids:
                 logger.warning("[PARSER] 0 объявлений — возможно блок")
                 time.sleep(15)
                 continue
 
-            for index, ad_element in enumerate(all_ads):
-                if ad_element.get('data-item-id') == str(ad_id):
+            for index, found_id in enumerate(item_ids):
+                if found_id == str(ad_id):
                     position = index + 1
                     logger.info(f"[PARSER] ✅ {ad_id} на позиции {position}")
                     return {"position": position}
 
-            logger.warning(f"[PARSER] {ad_id} не найден среди {len(all_ads)}")
-            return None
+            logger.warning(f"[PARSER] {ad_id} не найден среди {len(item_ids)}")
+            return None  # нашли страницу, объявления есть — но нашего нет, не повторяем
 
         except requests.exceptions.ProxyError as e:
-            logger.error(f"[PARSER] Ошибка прокси попытка {attempt+1}: {e}")
+            logger.error(f"[PARSER] Ошибка прокси {attempt+1}: {e}")
             time.sleep(10)
 
         except requests.exceptions.Timeout:
-            logger.error(f"[PARSER] Таймаут попытка {attempt+1}")
+            logger.error(f"[PARSER] Таймаут {attempt+1}")
             time.sleep(10)
 
         except Exception as e:
-            logger.error(f"[PARSER] Ошибка попытки {attempt+1}: {e}")
+            logger.error(f"[PARSER] Ошибка {attempt+1}: {e}")
             time.sleep(10)
 
-    logger.error("[PARSER] Все 3 попытки провалились")
+    logger.error("[PARSER] Все попытки провалились")
     return None
 
 

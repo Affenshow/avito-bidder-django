@@ -110,102 +110,33 @@ def get_balances(access_token: str, user_id: int) -> Dict:
 
 def get_item_info(access_token: str, item_id: int) -> Union[Dict, None]:
     """
-    Получает title и image через парсинг страницы объявления.
-    Использует ROTATING_PROXY.
+    Получает title через официальный API — без прокси, без парсинга.
     """
-    import re
-    from bs4 import BeautifulSoup
+    headers = {'Authorization': f'Bearer {access_token}'}
 
-    ad_url = None
-    ad_status = ""
-
-    # --- URL через API ---
     try:
-        user_id = get_avito_user_id(access_token)
-        if user_id:
-            api_url = ITEM_INFO_URL_TPL.format(user_id=user_id, item_id=item_id)
-            headers_api = {'Authorization': f'Bearer {access_token}'}
-            resp_api = requests.get(api_url, headers=headers_api, timeout=15)
-            if resp_api.status_code == 200:
-                api_data = resp_api.json()
-                ad_url = api_data.get("url")
-                ad_status = api_data.get("status", "")
+        resp = requests.get(
+            'https://api.avito.ru/core/v1/items',
+            headers=headers,
+            params={'ids': item_id},
+            timeout=15
+        )
+        if resp.status_code == 200:
+            resources = resp.json().get('resources', [])
+            for item in resources:
+                if item.get('id') == item_id:
+                    title = item.get('title', '')
+                    url = item.get('url', '')
+                    logger.info(f"[ITEM_INFO] ✅ {item_id}: «{title}»")
+                    return {
+                        "title": title,
+                        "image_url": None,
+                        "status": item.get('status', 'unknown'),
+                        "url": url,
+                    }
     except Exception as e:
-        logger.warning(f"[ITEM_INFO] API не отдал URL: {e}")
+        logger.error(f"[ITEM_INFO] Ошибка: {e}")
 
-    if not ad_url:
-        ad_url = f"https://www.avito.ru/{item_id}"
-
-    headers_browser = {
-        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/121.0.0.0 Safari/537.36',
-        'Accept-Language': 'ru-RU,ru;q=0.9',
-    }
-
-    # Попытка 1: с ROTATING_PROXY, Попытка 2: без прокси
-    attempts = [
-        ("proxy", ROTATING_PROXY),
-        ("direct", None),
-    ]
-
-    for attempt_name, attempt_proxies in attempts:
-        try:
-            logger.info(f"[ITEM_INFO] Парсинг {ad_url} ({attempt_name})...")
-            resp_page = requests.get(
-                ad_url,
-                headers=headers_browser,
-                proxies=attempt_proxies,
-                timeout=20,
-                allow_redirects=True
-            )
-
-            if resp_page.status_code != 200:
-                logger.warning(f"[ITEM_INFO] {attempt_name}: статус {resp_page.status_code}")
-                continue
-
-            soup = BeautifulSoup(resp_page.text, 'html.parser')
-
-            # --- Title ---
-            title = ""
-            h1 = soup.find('h1')
-            if h1:
-                title = h1.text.strip()
-            else:
-                og_title = soup.find('meta', property='og:title')
-                if og_title:
-                    raw = og_title.get('content', '')
-                    title = raw.split(' в ')[0] if ' в ' in raw else raw.split(' | ')[0]
-
-            # --- Image ---
-            image_url = None
-            hd_images = re.findall(
-                r'https://\d+\.img\.avito\.st/image/\d+/[^"\'>\s\\]+',
-                resp_page.text
-            )
-            if hd_images:
-                image_url = hd_images[0]
-
-            if not image_url:
-                og_image = soup.find('meta', property='og:image')
-                if og_image:
-                    image_url = og_image.get('content')
-
-            if not title and not image_url:
-                logger.warning(f"[ITEM_INFO] {attempt_name}: пустой результат, пробуем дальше")
-                continue
-
-            logger.info(f"[ITEM_INFO] ✅ {item_id}: «{title}» ({attempt_name})")
-            return {
-                "title": title,
-                "image_url": image_url,
-                "status": ad_status or "unknown",
-                "url": str(resp_page.url),
-            }
-
-        except requests.exceptions.RequestException as e:
-            logger.warning(f"[ITEM_INFO] {attempt_name} ошибка: {e}")
-            continue
-
-    logger.error(f"[ITEM_INFO] ❌ {item_id}: все попытки провалились")
     return None
 
 # =============================================================
