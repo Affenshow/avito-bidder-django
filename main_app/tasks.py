@@ -60,10 +60,13 @@ def get_ad_position(search_url: str, ad_id: int) -> Union[Dict, None]:
             )
 
             if response.status_code == 429:
-                wait = 30 + random.randint(0, 15)
-                logger.warning(f"[PARSER] 429 — ждём {wait}с")
-                time.sleep(wait)
-                continue
+              wait = 30 + random.randint(0, 15)
+              logger.warning(f"[PARSER] 429 — сбрасываем сессию, ждём {wait}с")
+              # Сбрасываем кеш — при следующей попытке создастся новая сессия
+              cs._cached_session = None
+              cs._session_created_at = 0
+              time.sleep(wait)
+              continue
 
             if response.status_code == 403:
                 wait = 30 + random.randint(0, 15)

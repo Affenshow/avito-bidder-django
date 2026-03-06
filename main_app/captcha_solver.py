@@ -19,7 +19,7 @@ HEADERS = {
 # Глобальный кеш сессии
 _cached_session = None
 _session_created_at = 0
-SESSION_TTL = 60 * 30  # 30 минут — потом пересоздаём
+SESSION_TTL = 60 * 8  # 8 минут — до бана Авито
 
 
 def _wait_for_result(task_id):
