@@ -1,20 +1,18 @@
 # main_app/tasks.py
 
 import logging
-import main_app.captcha_solver as cs
+import re
 import time
 import random
 import json
 import requests
 from django.utils import timezone
-from bs4 import BeautifulSoup
 from typing import Union, Dict
 from datetime import datetime
 from celery import shared_task
-from .captcha_solver import get_avito_session
+from .captcha_solver import get_avito_session, handle_429
 
 from .avito_api import (
-    ROTATING_PROXY,
     get_avito_access_token,
     get_current_ad_price,
     set_ad_price,
@@ -26,7 +24,7 @@ logger = logging.getLogger(__name__)
 
 
 # =============================================================
-# ПАРСИНГ ПОЗИЦИИ — ROTATING PROXY
+# ПАРСИНГ ПОЗИЦИИ — МОБИЛЬНЫЙ ПРОКСИ
 # =============================================================
 
 def get_ad_position(search_url: str, ad_id: int) -> Union[Dict, None]:
@@ -36,37 +34,28 @@ def get_ad_position(search_url: str, ad_id: int) -> Union[Dict, None]:
             logger.info(f"[PARSER] Попытка {attempt+1}/3 (пауза {pause:.1f}с)")
             time.sleep(pause)
 
-            session = get_avito_session(proxies=ROTATING_PROXY)
+            session = get_avito_session()
             if not session:
                 logger.error("[PARSER] Не удалось получить сессию")
                 time.sleep(15)
                 continue
 
-            # Только текст — без картинок, css, js
             session.headers.update({
                 'Accept': 'text/html',
-                'Accept-Encoding': 'gzip, deflate',  # сжатие — меньше трафика
+                'Accept-Encoding': 'gzip, deflate',
             })
-
-            # Добавляем только нужную страницу и минимум параметров
-            # Убираем лишние параметры из URL если есть
-            clean_url = search_url.split('?')[0]  # без параметров если не нужны
-            # Если параметры нужны — оставляем search_url как есть
 
             response = session.get(
                 search_url,
                 timeout=20,
-                stream=False,  # не стримить
+                stream=False,
             )
 
             if response.status_code == 429:
-              wait = 30 + random.randint(0, 15)
-              logger.warning(f"[PARSER] 429 — сбрасываем сессию, ждём {wait}с")
-              # Сбрасываем кеш — при следующей попытке создастся новая сессия
-              cs._cached_session = None
-              cs._session_created_at = 0
-              time.sleep(wait)
-              continue
+                logger.warning(f"[PARSER] 429 — меняем IP, попытка {attempt+1}/3")
+                session = handle_429()
+                time.sleep(5)
+                continue
 
             if response.status_code == 403:
                 wait = 30 + random.randint(0, 15)
@@ -75,17 +64,13 @@ def get_ad_position(search_url: str, ad_id: int) -> Union[Dict, None]:
                 continue
 
             if 'Доступ ограничен' in response.text or 'firewallCaptcha' in response.text:
-               logger.warning("[PARSER] Капча — сбрасываем кеш сессии")
-               # Сбрасываем кеш чтобы пересоздать сессию
-               cs._cached_session = None
-               cs._session_created_at = 0
-               time.sleep(15)
-               continue
+                logger.warning("[PARSER] Блок/капча — меняем IP")
+                session = handle_429()
+                time.sleep(5)
+                continue
 
             response.raise_for_status()
 
-            # Ищем только data-item-id в тексте — без полного парсинга BeautifulSoup
-            import re
             item_ids = re.findall(r'data-item-id=["\'](\d+)["\']', response.text)
             logger.info(f"[PARSER] Найдено {len(item_ids)} объявлений")
 
@@ -101,7 +86,7 @@ def get_ad_position(search_url: str, ad_id: int) -> Union[Dict, None]:
                     return {"position": position}
 
             logger.warning(f"[PARSER] {ad_id} не найден среди {len(item_ids)}")
-            return None  # нашли страницу, объявления есть — но нашего нет, не повторяем
+            return None
 
         except requests.exceptions.ProxyError as e:
             logger.error(f"[PARSER] Ошибка прокси {attempt+1}: {e}")
@@ -243,7 +228,6 @@ def run_bidding_for_task(self, task_id: int):
     logger.info(f"[TASK {task_id}] ▶ Биддер для объявления {task.ad_id}")
     TaskLog.objects.create(task=task, message=f"▶ Биддер для {task.ad_id}")
 
-    # Парсим позицию через rotating прокси
     ad_data = get_ad_position(task.search_url, task.ad_id)
 
     # --- Не найдено ---

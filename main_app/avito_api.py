@@ -2,22 +2,10 @@
 
 import requests
 import logging
-import random
 import time
 from typing import Union, Dict, List
 
 logger = logging.getLogger(__name__)
-
-# =============================================================
-# ROTATING ПРОКСИ — один на всё, IP меняется автоматически
-# =============================================================
-
-# avito_api.py — меняем только эту строку
-
-ROTATING_PROXY = {
-    'http':  'socks5h://u3822a4cd582005d0-zone-cis-region-ru:u3822a4cd582005d0@eu.proxy.rucaptcha.com:2333',
-    'https': 'socks5h://u3822a4cd582005d0-zone-cis-region-ru:u3822a4cd582005d0@eu.proxy.rucaptcha.com:2333',
-}
 
 # =============================================================
 # ЭНДПОИНТЫ
@@ -109,9 +97,6 @@ def get_balances(access_token: str, user_id: int) -> Dict:
 # =============================================================
 
 def get_item_info(access_token: str, item_id: int) -> Union[Dict, None]:
-    """
-    Получает title через официальный API — без прокси, без парсинга.
-    """
     headers = {'Authorization': f'Bearer {access_token}'}
 
     try:
@@ -233,7 +218,6 @@ def set_ad_price(ad_id: int, new_price: float, access_token: str,
         response = requests.post(
             SET_MANUAL_BID_URL, headers=headers, json=body, timeout=15
         )
-        # ДОБАВИЛИ — показываем что вернул Avito
         logger.info(f"[SET] Ответ Avito: {response.status_code} | {response.text[:300]}")
         response.raise_for_status()
         logger.info(f"[SET] ✅ Успех")
