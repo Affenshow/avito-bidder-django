@@ -220,6 +220,14 @@ def bulk_update_tasks(request):
         if update_fields:
             tasks.update(**update_fields)
         
+        # === НОВОЕ: при включении задач запускаем их в Celery ===
+        if data.get('is_active') == True:
+            from main_app.tasks import run_bidding_for_task
+            import random
+            for task in tasks:
+                delay = random.randint(5, 60)
+                run_bidding_for_task.apply_async(args=[task.id], countdown=delay)
+        
         return JsonResponse({
             'status': 'ok',
             'updated': tasks.count()
