@@ -12,10 +12,10 @@ GEETEST_CAPTCHA_ID = '2d9c743cf7d63dbc9db578a608196bcd'
 
 # Мобильный прокси
 MOBILE_PROXY = {
-    'http':  'http://vuU1DY:apsYVEZRaY7c@mproxy.site:11289',
-    'https': 'http://vuU1DY:apsYVEZRaY7c@mproxy.site:11289',
+    'http':  'http://L5ldPoa7:5J3QK9a6@89.149.100.92:8031',
+    'https': 'http://L5ldPoa7:5J3QK9a6@89.149.100.92:8031',
 }
-CHANGEIP_URL = 'https://changeip.mobileproxy.space/?proxy_key=7db42d70377c063ba427f4487f63aa6f'
+CHANGEIP_URL = 'http://89.149.100.92:7002/apix/reset_ip_secure?hash=aes_ecb:3cfcbdb67d4f115174c87aa6dbcf2e6b4526f06a267d8980f52a2d7a634fc8c1'
 
 HEADERS = {
     'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/121.0.0.0 Safari/537.36',
